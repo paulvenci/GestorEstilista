@@ -1,0 +1,108 @@
+Propuesta Técnica: Plataforma SaaS para Gestión de Centros de Estética
+Preparado para: Antigravity Fecha: 11 de Febrero, 2026 Versión: 1.0 (Definición MVP)
+
+1. Resumen Ejecutivo
+El objetivo de este proyecto es desarrollar una Plataforma Web Progresiva (PWA) diseñada bajo el modelo SaaS (Software as a Service). Esta herramienta permitirá a Antigravity ofrecer un servicio de digitalización a múltiples peluquerías y centros de estética simultáneamente.
+
+La solución se enfoca en la movilidad (Mobile-First), permitiendo a los dueños y estilistas gestionar su agenda, clientes y caja directamente desde sus teléfonos móviles, sin necesidad de instalar aplicaciones nativas pesadas y con una experiencia de usuario fluida y moderna.
+
+2. Arquitectura y Stack Tecnológico
+Hemos seleccionado una arquitectura moderna, escalable y de bajo costo operativo, priorizando la agilidad en el desarrollo y la estabilidad a largo plazo.
+
+2.1 Frontend & Experiencia de Usuario (PWA)
+Framework: Nuxt 3 (Vue.js).
+
+Justificación: Permite un desarrollo modular y rápido. Su capacidad de Server Side Rendering (SSR) garantiza una carga inicial inmediata, crucial para zonas con conexión móvil inestable.
+
+Interfaz (UI): Tailwind CSS + Nuxt UI.
+
+Justificación: Sistema de diseño utilitario que facilita la creación de interfaces limpias y adaptables a cualquier tamaño de pantalla (celular, tablet, desktop).
+
+PWA (Progressive Web App):
+
+La aplicación será instalable en dispositivos Android e iOS directamente desde el navegador, funcionando como una app nativa (sin barra de dirección, pantalla completa, icono en home).
+
+2.2 Backend & Base de Datos (Backend-as-a-Service)
+Plataforma: Supabase.
+
+Base de Datos: PostgreSQL. Robustez empresarial para el manejo relacional de datos complejos (citas, historial, transacciones).
+
+Autenticación: Gestión segura de usuarios (Dueños, Administradores, Estilistas).
+
+Almacenamiento: Bucket para guardar logos de empresas y fotos de perfil.
+
+Tiempo Real: Sincronización automática de la agenda entre dispositivos (si una recepcionista agenda una cita, aparece al instante en el celular del estilista).
+
+2.3 Infraestructura & Despliegue
+Hosting: Vercel.
+
+Permite despliegue global, alta disponibilidad y costos iniciales gratuitos o muy bajos, escalando automáticamente según la demanda.
+
+3. Modelo de Negocio: Arquitectura Multi-Tenant
+El sistema está diseñado para que Antigravity sea el proveedor del servicio para múltiples clientes.
+
+Base de Datos Unificada: Todos los clientes (peluquerías) conviven en la misma base de datos, lo que facilita el mantenimiento y las actualizaciones.
+
+Aislamiento de Datos (Seguridad): Se implementará Row Level Security (RLS) en la base de datos. Esto garantiza matemáticamente que la Peluquería A jamás podrá acceder a los datos de la Peluquería B, aunque compartan la misma infraestructura.
+
+4. Alcance Funcional (MVP)
+El sistema contará con dos vistas o "Paneles" diferenciados:
+
+A. Panel Super Admin (Vista Antigravity)
+Uso exclusivo para la gestión del negocio SaaS.
+
+Dashboard de Métricas: Visualización de peluquerías activas y crecimiento mensual.
+
+Gestión de Inquilinos (Tenants):
+
+Alta de nuevas peluquerías.
+
+Generación de usuario "Admin" inicial para el cliente.
+
+Bloqueo de acceso (ej. por falta de pago).
+
+B. App del Centro de Estética (Vista Cliente)
+Herramienta operativa para el salón.
+
+Agenda Inteligente (Core):
+
+Vista diaria por columnas (Estilistas).
+
+Detección automática de conflictos de horario.
+
+Bloqueo de horas (almuerzos, licencias).
+
+Gestión de Clientes (CRM Ligero):
+
+Base de datos de clientes con buscador predictivo.
+
+Historial de servicios y notas técnicas (ej. "Tinte 7.1 con 20 vol").
+
+Botón de contacto directo vía WhatsApp.
+
+Integración WhatsApp (Nivel 1):
+
+Generación automática de mensajes predefinidos para recordatorios de citas.
+
+Envío mediante "Click-to-Chat" (sin costo de API en esta fase).
+
+Caja y Comisiones:
+
+Registro de servicios realizados.
+
+Reporte básico de comisiones por estilista.
+
+5. Fases de Desarrollo sugerido (para equipo de trabajo, pero se hará con agentes de antigravity)
+Fase,Objetivo Principal,Entregables Clave
+Fase 1: Cimientos,Estructura y Seguridad,Configuración Nuxt + Supabase. Sistema de Login y RLS Multi-tenant. Panel Super Admin básico.
+Fase 2: Agenda Core,Funcionalidad Principal,Calendario interactivo en Vue. Lógica de reservas y bloqueos. Base de datos de clientes.
+Fase 3: Operación,Gestión del Negocio,Módulo de Caja. Cálculo de comisiones. Integración de WhatsApp (Click-to-chat). Optimización PWA.
+Fase 4: Lanzamiento,QA y Despliegue,Pruebas de carga. Corrección de bugs. Despliegue a producción en Vercel.
+6. Escalabilidad Futura (Siguientes Pasos)
+Una vez validado el MVP, la arquitectura permite agregar fácilmente:
+
+Pagos en Línea: Integración con pasarelas (MercadoPago/Stripe) para cobrar señas al reservar.
+
+WhatsApp Bot: Automatización completa de recordatorios usando la API oficial de Meta (con costo por mensaje).
+
+App para Cliente Final: Una vista donde el usuario final pueda auto-agendarse sin llamar.
