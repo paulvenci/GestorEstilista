@@ -23,6 +23,9 @@ jobs:
 
       - name: Generate Static Site
         run: npm run generate
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v4
