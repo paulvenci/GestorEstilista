@@ -4,6 +4,10 @@ import { defineNuxtConfig } from 'nuxt/config'
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  ssr: false, // SPA mode for static hosting
+  app: {
+    baseURL: '/GestorEstilista/',
+  },
 
   modules: ['@nuxt/ui', '@pinia/nuxt', '@nuxtjs/supabase'],
 
