@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-6">
     <div class="flex justify-between items-center">
-      <div>
+      <div class="hidden md:block">
         <h1 class="text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Servicios</h1>
         <p class="text-slate-500 dark:text-slate-400">Administra el catálogo de servicios del salón</p>
       </div>
-      <UButton label="Nuevo Servicio" icon="i-heroicons-plus" color="emerald" @click="openNew" />
+      <UButton v-if="userRole === 'admin'" label="Nuevo Servicio" icon="i-heroicons-plus" color="emerald" @click="openNew" />
     </div>
 
     <UCard :ui="{ background: 'bg-white dark:bg-slate-900', ring: 'ring-1 ring-slate-200 dark:ring-slate-800' }">
@@ -42,18 +42,27 @@
 
 <script setup lang="ts">
 const client = useSupabaseClient()
+const headerTitle = useState('headerTitle', () => 'Catálogo')
+headerTitle.value = 'Catálogo'
 const loading = ref(false)
 const services = ref([])
 const isModalOpen = ref(false)
 const selectedService = ref(null)
 
-const columns = [
-  { key: 'name', label: 'Nombre' },
-  { key: 'duration_min', label: 'Duración' },
-  { key: 'price', label: 'Precio' },
-  { key: 'active', label: 'Estado' },
-  { key: 'actions', label: 'Acciones' }
-]
+const userRole = useState('userRole')
+
+const columns = computed(() => {
+  const cols = [
+    { key: 'name', label: 'Nombre' },
+    { key: 'duration_min', label: 'Duración' },
+    { key: 'price', label: 'Precio' },
+    { key: 'active', label: 'Estado' }
+  ]
+  if (userRole.value === 'admin') {
+    cols.push({ key: 'actions', label: 'Acciones' })
+  }
+  return cols
+})
 
 const fetchServices = async () => {
     loading.value = true
@@ -73,16 +82,19 @@ const fetchServices = async () => {
 }
 
 const openNew = () => {
+    if (userRole.value !== 'admin') return
     selectedService.value = null
     isModalOpen.value = true
 }
 
 const openEdit = (service) => {
+    if (userRole.value !== 'admin') return
     selectedService.value = { ...service }
     isModalOpen.value = true
 }
 
 const deleteService = async (service) => {
+    if (userRole.value !== 'admin') return
     if (!confirm('¿Estás seguro de eliminar este servicio? Si ya tiene citas asociadas, es mejor desactivarlo.')) return
 
     const { error } = await client.from('services').delete().eq('id', service.id)

@@ -16,7 +16,7 @@
         <!-- Fields for Appointments -->
         <template v-if="type === 'appointment'">
             <!-- Client Selector -->
-            <ClientSelector v-if="!isEdit" :clients="clients" @select="handleClientSelect" @created="handleClientSelect" />
+            <ClientSelector v-if="!isEdit" :clients="allClients" @select="handleClientSelect" @created="handleClientCreated" />
             <div v-else class="p-3 bg-gray-50 dark:bg-slate-800 rounded border border-gray-200 dark:border-slate-700">
               <span class="text-xs text-gray-500 dark:text-gray-400 block">Cliente</span>
               <span class="font-semibold text-gray-900 dark:text-white">{{ appointment.client?.full_name || 'Sin Cliente' }}</span>
@@ -104,17 +104,64 @@
           <UTextarea v-model="appointment.notes" placeholder="Detalles..." />
         </UFormGroup>
 
-        <div class="flex justify-between pt-4">
-           <div class="flex gap-2">
-             <UButton v-if="isEdit && !isCharging && appointment.status !== 'completed'" color="emerald" variant="outline" label="Cobrar" icon="i-heroicons-currency-dollar" @click="startCharging" />
-             <UButton v-if="isEdit && clientHasPhone" color="green" variant="ghost" icon="i-heroicons-chat-bubble-left-right" @click="sendWhatsApp" />
-             <span v-if="appointment.status === 'completed'" class="text-emerald-600 font-bold flex items-center gap-1"><UIcon name="i-heroicons-check-circle" /> Completado</span>
+        <UFormGroup label="Estado" v-if="isEdit">
+           <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-slate-800/50 rounded-lg border border-gray-100 dark:border-slate-800">
+               <!-- Status Indicator -->
+               <div v-if="appointment.status === 'completed'" class="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                   <UIcon name="i-heroicons-check-circle" class="w-5 h-5" />
+                   <span>Completado</span>
+               </div>
+               <div v-else class="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 text-sm font-medium">
+                   <div class="w-2 h-2 rounded-full bg-amber-400"></div>
+                   <span>Pendiente</span>
+               </div>
+
+               <!-- Actions -->
+               <div class="flex items-center gap-2">
+                   <UButton 
+                      v-if="!isCharging && clientHasPhone" 
+                      color="green" 
+                      variant="ghost" 
+                      icon="i-heroicons-chat-bubble-left-right" 
+                      @click="sendWhatsApp"
+                      size="xs"
+                   />
+                   <UButton 
+                      v-if="!isCharging && appointment.status !== 'completed'" 
+                      color="emerald" 
+                      variant="solid" 
+                      size="2xs"
+                      label="Cobrar" 
+                      icon="i-heroicons-currency-dollar" 
+                      @click="startCharging" 
+                   />
+               </div>
            </div>
+        </UFormGroup>
+
+        <div class="flex justify-between items-center pt-4 border-t border-gray-100 dark:border-slate-800">
+           <!-- Left Action: Delete -->
+           <UButton 
+             v-if="isEdit && !isCharging" 
+             color="red" 
+             variant="ghost" 
+             label="Eliminar" 
+             @click="cancelAppointment" 
+           />
+           <div v-else></div> <!-- Spacer if no delete button -->
            
-           <div class="flex gap-2">
-             <UButton v-if="isEdit && !isCharging" color="red" variant="soft" label="Eliminar" @click="cancelAppointment" />
-             <UButton v-if="isCharging" color="gray" variant="ghost" label="Cancelar Pago" @click="isCharging = false" />
-             <UButton type="submit" :label="isCharging ? 'Confirmar Pago' : 'Guardar'" :color="isCharging ? 'emerald' : 'primary'" :loading="saving" @click="saveAppointment" />
+           <!-- Right Actions: Save/Cancel -->
+           <div class="flex items-center gap-2">
+             <UButton v-if="isCharging" color="gray" variant="ghost" label="Cancelar" @click="isCharging = false" />
+             
+             <UButton 
+               type="submit" 
+               :label="isCharging ? 'Confirmar Pago' : 'Guardar'" 
+               :color="isCharging ? 'emerald' : 'primary'" 
+               :loading="saving" 
+               @click="saveAppointment"
+               class="min-w-[100px] justify-center"
+             />
            </div>
         </div>
       </div>
@@ -208,14 +255,27 @@ watch(() => props.modelValue, (val) => {
   }
 })
 
+const localClients = ref<any[]>([])
+
+// Merge props.clients with localClients (created in this session)
+const allClients = computed(() => {
+    const combined = [...(props.clients || []), ...localClients.value]
+    // Deduplicate by ID
+    const unique = new Map()
+    for (const c of combined) {
+        unique.set(c.id, c)
+    }
+    return Array.from(unique.values())
+})
+
 const clientHasPhone = computed(() => {
     if (!appointment.value.client_id) return false
-    const c = props.clients.find(c => c.id === appointment.value.client_id)
+    const c = allClients.value.find(c => c.id === appointment.value.client_id)
     return c && c.phone && c.phone.length > 5
 })
 
 const sendWhatsApp = () => {
-    const c = props.clients.find(c => c.id === appointment.value.client_id)
+    const c = allClients.value.find(c => c.id === appointment.value.client_id)
     if (!c || !c.phone) return
 
     const date = new Date(localStartTime.value).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })
@@ -231,6 +291,11 @@ const sendWhatsApp = () => {
 
 const handleClientSelect = (clientData) => {
   appointment.value.client_id = clientData.id
+}
+
+const handleClientCreated = (clientData) => {
+    localClients.value.push(clientData)
+    handleClientSelect(clientData)
 }
 
 const updateEndTime = () => {
@@ -335,14 +400,36 @@ const saveAppointment = async () => {
         const { data: savedAppt, error: apptError } = await client.from('appointments').upsert(payload).select().single()
         if (apptError) throw apptError
         
-        // 4. Transactions Logic
+           // 4. Transactions Logic
         if (isCharging.value && savedAppt) {
            const stylist = props.stylists.find(s => s.id === payload.stylist_id)
-           const commissionRate = stylist?.commission_rate || 0
+           const serviceRate = stylist?.commission_rate || 0
+           const productRate = stylist?.product_commission_rate || 0 // New field
            
-           // Calculate total commission (only for services? or products too? for now assuming everything gives commission)
-           // Business rule: Usually products have different commission. For MVP, flat rate on Total.
-           const commissionAmount = (cartTotal.value * commissionRate) / 100
+           // Calculate total commission with split rates
+           let totalCommission = 0
+           
+           // Create Transaction Items Payload & Calculate Commission
+           const itemsPayload = cart.value.map(item => {
+               const isService = item.type === 'service'
+               const rate = isService ? serviceRate : productRate
+               const itemTotal = item.price * item.quantity
+               const commission = (itemTotal * rate) / 100
+               
+               totalCommission += commission
+
+               return {
+                   tenant_id: tenantId,
+                   transaction_id: '', // Will be set after tx creation, or we create tx first
+                   service_id: isService ? item.id : null,
+                   product_id: !isService ? item.id : null,
+                   item_id: item.id,
+                   item_type: item.type,
+                   name: item.name,
+                   quantity: item.quantity,
+                   unit_price: item.price
+               }
+           })
 
            // Create Transaction
            const { data: transaction, error: txError } = await client.from('transactions').insert({
@@ -351,28 +438,16 @@ const saveAppointment = async () => {
               client_id: payload.client_id,
               stylist_id: payload.stylist_id,
               total_amount: cartTotal.value,
-              commission_amount: commissionAmount,
+              commission_amount: totalCommission, // Saved calculated total
               payment_method: payment.value.method,
               notes: 'Cobro de cita #' + savedAppt.id.slice(0, 6)
            }).select().single()
            
            if (txError) throw txError
 
-           // Create Transaction Items
-           const itemsPayload = cart.value.map(item => ({
-               tenant_id: tenantId,
-               transaction_id: transaction.id,
-               service_id: item.type === 'service' ? item.id : null,
-               product_id: item.type === 'product' ? item.id : null,
-               item_id: item.id,
-               item_type: item.type,
-               name: item.name,
-               quantity: item.quantity,
-               unit_price: item.price
-               // total_price is likely generated or handled by DB
-           }))
-
-           const { error: itemsError } = await client.from('transaction_items').insert(itemsPayload)
+           // Assign transaction_id to items and insert
+           const finalItems = itemsPayload.map(i => ({ ...i, transaction_id: transaction.id }))
+           const { error: itemsError } = await client.from('transaction_items').insert(finalItems)
            if (itemsError) throw itemsError
 
            // Deduct Stock

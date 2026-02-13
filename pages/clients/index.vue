@@ -1,8 +1,8 @@
 <template>
   <div class="space-y-6">
     <div class="flex justify-between items-center px-4">
-      <h1 class="text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Clientes</h1>
-      <UButton icon="i-heroicons-plus" label="Nuevo Cliente" color="emerald" @click="openModal()" />
+      <h1 class="hidden md:block text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Clientes</h1>
+      <UButton icon="i-heroicons-plus" label="Nuevo" color="emerald" @click="openModal()" />
     </div>
 
     <UCard shadow="md" :ui="{ body: { padding: 'p-0' }, background: 'bg-white dark:bg-slate-900', ring: 'ring-1 ring-slate-200 dark:ring-slate-800' }">
@@ -56,6 +56,8 @@
 
 <script setup lang="ts">
 const client = useSupabaseClient()
+const headerTitle = useState('headerTitle', () => 'Clientes')
+headerTitle.value = 'Clientes'
 const user = useSupabaseUser()
 const search = ref('')
 const loading = ref(false)

@@ -60,18 +60,27 @@ const createClient = async () => {
   creating.value = true
   
   try {
+    const { data: { user: authUser } } = await client.auth.getUser()
+    if (!authUser) throw new Error('Usuario no autenticado')
+
+    const { data: profile } = await client.from('profiles').select('tenant_id').eq('id', authUser.id).single()
+    if (!profile) throw new Error('No se pudo identificar el salón')
+
     const { data, error } = await client.from('clients').insert({
       full_name: newClient.value.full_name,
-      phone: newClient.value.phone
+      phone: newClient.value.phone,
+      tenant_id: profile.tenant_id
     }).select().single()
 
     if (error) throw error
     
     emit('created', data)
+    selectedClient.value = data
+    emitSelection()
     newClient.value = { full_name: '', phone: '' }
-    // Alert or toast could go here
-  } catch (e) {
+  } catch (e: any) {
     console.error(e)
+    alert('Error al crear cliente: ' + (e.message || 'Error desconocido'))
   } finally {
     creating.value = false
   }

@@ -1,48 +1,45 @@
 <template>
-  <div>
-    <h1 class="text-xl md:text-3xl font-bold mb-6">Dashboard Super Admin</h1>
+  <div class="space-y-8">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div class="hidden md:block">
+        <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Dashboard Super Admin</h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-1">Resumen del sistema y métricas globales.</p>
+      </div>
+    </div>
     
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <UCard>
-        <template #header>
-          <div class="text-gray-400 text-sm">Total Peluquerías</div>
-        </template>
-        <div class="text-3xl font-bold">{{ tenantsCount }}</div>
-      </UCard>
-    </div>
-
-    <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-semibold">Peluquerías Activas</h2>
-      <UButton icon="i-heroicons-plus" label="Nueva Peluquería" @click="isOpen = true" />
-    </div>
-
-    <UCard>
-      <UTable :rows="tenants" :columns="columns" />
-    </UCard>
-
-    <!-- Modal Nueva Peluquería -->
-    <UModal v-model="isOpen">
-      <UCard>
-        <template #header>
-          <div class="font-bold">Registrar Nueva Peluquería</div>
-        </template>
-        
-        <form @submit.prevent="createTenant" class="space-y-4">
-          <UFormGroup label="Nombre del Negocio" name="name">
-            <UInput v-model="newTenant.name" />
-          </UFormGroup>
-
-          <UFormGroup label="Slug (URL)" name="slug">
-            <UInput v-model="newTenant.slug" />
-          </UFormGroup>
-
-          <div class="flex justify-end gap-2 mt-4">
-            <UButton color="gray" variant="ghost" label="Cancelar" @click="isOpen = false" />
-            <UButton type="submit" label="Crear" :loading="creating" />
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <UCard class="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all hover:shadow-md cursor-pointer" @click="navigateTo('/admin/tenants')">
+        <div class="flex items-center gap-4">
+          <div class="p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl">
+            <UIcon name="i-heroicons-building-office-2" class="text-3xl text-emerald-600 dark:text-emerald-400" />
           </div>
-        </form>
+          <div>
+            <div class="text-sm font-medium text-slate-500 dark:text-slate-400">Total Peluquerías</div>
+            <div class="text-3xl font-bold text-slate-900 dark:text-white">{{ tenantsCount }}</div>
+          </div>
+        </div>
       </UCard>
-    </UModal>
+
+      <UCard class="bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all hover:shadow-md">
+        <div class="flex items-center gap-4">
+          <div class="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
+            <UIcon name="i-heroicons-users" class="text-3xl text-blue-600 dark:text-blue-400" />
+          </div>
+          <div>
+            <div class="text-sm font-medium text-slate-500 dark:text-slate-400">Usuarios Totales</div>
+            <div class="text-3xl font-bold text-slate-900 dark:text-white">{{ usersCount }}</div>
+          </div>
+        </div>
+      </UCard>
+    </div>
+
+    <div class="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-6">
+      <h3 class="font-bold text-emerald-900 dark:text-emerald-400">Acceso Rápido</h3>
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <UButton to="/admin/tenants" variant="outline" color="emerald" label="Gestionar Peluquerías" icon="i-heroicons-building-office-2" />
+        <UButton to="/" variant="outline" color="gray" label="Ver Agenda (Tenant Actual)" icon="i-heroicons-calendar" />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -53,45 +50,22 @@ definePageMeta({
 })
 
 const client = useSupabaseClient()
-const isOpen = ref(false)
-const creating = ref(false)
-const tenants = ref([])
-const tenantsCount = computed(() => tenants.value.length)
+const headerTitle = useState('headerTitle', () => 'Métricas')
+headerTitle.value = 'Métricas'
+const tenantsCount = ref(0)
+const usersCount = ref(0)
 
-const newTenant = ref({
-  name: '',
-  slug: ''
-})
+const fetchDashboardData = async () => {
+  const [tenantsRes, profilesRes] = await Promise.all([
+    client.from('tenants').select('*', { count: 'exact', head: true }),
+    client.from('profiles').select('*', { count: 'exact', head: true })
+  ])
 
-const columns = [
-  { key: 'name', label: 'Nombre' },
-  { key: 'slug', label: 'Slug' },
-  { key: 'created_at', label: 'Fecha Registro' }
-]
-
-const fetchTenants = async () => {
-  const { data } = await client.from('tenants').select('*').order('created_at', { ascending: false })
-  if (data) tenants.value = data
-}
-
-const createTenant = async () => {
-  creating.value = true
-  try {
-    const { error } = await client.from('tenants').insert(newTenant.value)
-    if (error) throw error
-    
-    isOpen.value = false
-    newTenant.value = { name: '', slug: '' }
-    await fetchTenants()
-    alert('Peluquería creada exitosamente')
-  } catch (e: any) {
-    alert('Error al crear: ' + e.message)
-  } finally {
-    creating.value = false
-  }
+  tenantsCount.value = tenantsRes.count || 0
+  usersCount.value = profilesRes.count || 0
 }
 
 onMounted(() => {
-  fetchTenants()
+  fetchDashboardData()
 })
 </script>

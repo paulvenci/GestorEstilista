@@ -19,8 +19,9 @@
     </div>
 
     <!-- For demo/dev purposes -->
-    <div class="mt-4 text-center text-xs text-gray-400">
+    <div class="mt-4 text-center text-xs text-gray-400 space-y-1">
       <p>¿No tienes cuenta? Contacta a tu administrador.</p>
+      <p class="text-xs text-slate-300 dark:text-slate-600">v{{ config.public.appVersion }}</p>
     </div>
   </div>
 </template>
@@ -32,6 +33,7 @@ definePageMeta({
 
 const client = useSupabaseClient()
 const router = useRouter() // Use router for manual redirect
+const config = useRuntimeConfig()
 
 const email = ref('')
 const password = ref('')

@@ -1,11 +1,11 @@
 <template>
   <div class="space-y-6">
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-      <div>
+      <div class="hidden md:block">
         <h1 class="text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Inventario de Productos</h1>
         <p class="text-sm md:text-base text-slate-500 dark:text-slate-400">Gestiona el stock y precios de tus productos de venta</p>
       </div>
-      <UButton label="Nuevo Producto" icon="i-heroicons-plus" color="emerald" @click="openNew" class="w-full md:w-auto justify-center" />
+      <UButton v-if="userRole === 'admin'" label="Nuevo Product" icon="i-heroicons-plus" color="emerald" @click="openNew" class="w-full md:w-auto justify-center" />
     </div>
 
     <!-- KPI Cards -->
@@ -83,19 +83,29 @@
 import type { Database } from '~/types/database.types'
 
 const client = useSupabaseClient<Database>()
+const headerTitle = useState('headerTitle', () => 'Inventario')
+headerTitle.value = 'Inventario'
+headerTitle.value = 'Inventario'
 const loading = ref(false)
 const products = ref<Database['public']['Tables']['products']['Row'][]>([])
 const isModalOpen = ref(false)
 const selectedProduct = ref<Database['public']['Tables']['products']['Row'] | null>(null)
 
-const columns = [
-  { key: 'name', label: 'Producto' },
-  { key: 'stock', label: 'Stock' },
-  { key: 'price', label: 'Precio Venta' },
-  { key: 'cost', label: 'Costo' },
-  { key: 'active', label: 'Estado' },
-  { key: 'actions', label: 'Acciones' }
-]
+const userRole = useState('userRole')
+
+const columns = computed(() => {
+  const cols = [
+    { key: 'name', label: 'Producto' },
+    { key: 'stock', label: 'Stock' },
+    { key: 'price', label: 'Precio Venta' },
+    { key: 'cost', label: 'Costo' },
+    { key: 'active', label: 'Estado' }
+  ]
+   if (userRole.value === 'admin') {
+    cols.push({ key: 'actions', label: 'Acciones' })
+  }
+  return cols
+})
 
 // Computed Metrics
 const lowStockCount = computed(() => products.value.filter(p => p.stock <= (p.low_stock_threshold || 5)).length)
@@ -119,16 +129,19 @@ const fetchProducts = async () => {
 }
 
 const openNew = () => {
+    if (userRole.value !== 'admin') return
     selectedProduct.value = null
     isModalOpen.value = true
 }
 
 const openEdit = (product: Database['public']['Tables']['products']['Row']) => {
+    if (userRole.value !== 'admin') return
     selectedProduct.value = { ...product }
     isModalOpen.value = true
 }
 
 const deleteProduct = async (product: Database['public']['Tables']['products']['Row']) => {
+    if (userRole.value !== 'admin') return
     if (!confirm('¿Estás seguro de eliminar este producto?')) return
 
     const { error } = await client.from('products').delete().eq('id', product.id)
