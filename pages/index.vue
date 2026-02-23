@@ -3,7 +3,6 @@
     <div class="flex items-center justify-between mb-2 md:mb-4 gap-2">
       <div class="flex items-center gap-2">
         <h1 class="hidden md:block text-2xl font-bold text-slate-900 dark:text-white shrink-0">Agenda</h1>
-        <h1 class="hidden md:block text-2xl font-bold text-slate-900 dark:text-white shrink-0">Agenda</h1>
         <USelectMenu 
             v-model="selectedStylist" 
             :options="stylistOptions" 
@@ -101,9 +100,9 @@
       <ClientOnly>
         <FullCalendar ref="calendarRef" :options="calendarOptions" class="flex-1" :style="{ '--slot-height': `${zoomLevel}rem` }">
             <template #eventContent="{ event, timeText, view }">
-                <div class="w-full h-full overflow-visible relative cursor-pointer" @click.stop="handleEventClick({ event })">
-                    <UPopover mode="hover" :popper="{ placement: 'auto', strategy: 'fixed' }" :ui="{ width: 'max-w-xs' }">
-                        <div class="w-full h-full overflow-hidden flex flex-col leading-tight" :class="view.type.includes('list') ? 'flex-row items-center gap-2' : ''">
+                <div class="w-full h-full overflow-visible relative cursor-pointer">
+                    <UPopover mode="hover" :popper="{ placement: 'auto', strategy: 'fixed' }" :ui="{ width: 'max-w-xs' }" class="pointer-events-none">
+                        <div class="w-full h-full overflow-hidden flex flex-col leading-tight cursor-pointer" :class="view.type.includes('list') ? 'flex-row items-center gap-2' : ''">
                             <!-- Time -->
                             <div v-if="!view.type.includes('list')" class="flex justify-between items-center mb-0.5">
                                 <span class="text-[10px] font-bold opacity-90">{{ timeText }}</span>
@@ -340,9 +339,15 @@ const filteredEvents = computed(() => {
     })
 })
 
+const currentUserProfile = ref(null)
+
 const fetchData = async () => {
   const { data: { user } } = await client.auth.getUser()
   if (!user) return
+
+  // Load User Profile to check role
+  const { data: profile } = await client.from('profiles').select('*').eq('id', user.id).single()
+  currentUserProfile.value = profile
 
   // Load Catalogs
   const [pRes, sRes, cRes, prodRes] = await Promise.all([
@@ -357,32 +362,72 @@ const fetchData = async () => {
   clients.value = cRes.data || []
   products.value = prodRes.data || []
 
-  // Load Appointments (Range: +/- 1 month from current view ideally, but load all for now or optimize later)
-  // For MVP, loading 'future' and 'recent past' is enough. 
-  // FullCalendar fetches on demand if configured as function, but simple array binding is easier for now.
-  
-  // Let's load current month +/- 1
-  const { data } = await client.from('appointments').select('*').neq('status', 'cancelled')
+  // Load Appointments
+  const { data } = await client.from('appointments').select('*, appointment_items(*)').neq('status', 'cancelled')
   appointments.value = data || []
 }
 
 // Handlers
 const handleDateSelect = (selectInfo) => {
+    // Check if user has permission to create appointments (usually yes, for themselves)
+    // If stylist, pre-fill their own ID?
+    // Let's allow creation for now, filtering usually happens on saving or via UI hints
+    
     selectedAppointment.value = {
         start_time: selectInfo.startStr,
         end_time: selectInfo.endStr,
-        stylist_id: selectedStylist.value || undefined // Pre-select if filtered
+        stylist_id: selectedStylist.value || (currentUserProfile.value?.role === 'stylist' ? currentUserProfile.value.id : undefined)
     }
     isModalOpen.value = true
     selectInfo.view.calendar.unselect()
 }
 
 const handleEventClick = (clickInfo) => {
-    selectedAppointment.value = { ...clickInfo.event.extendedProps }
+    const apt = clickInfo.event.extendedProps
+    const user = currentUserProfile.value
+
+    if (!user) return
+
+    const isAdminOrReceptionist = ['admin', 'superadmin', 'receptionist'].includes(user.role)
+    const isOwner = apt.stylist_id === user.id
+
+    if (!isAdminOrReceptionist && !isOwner) {
+        useToast().add({
+            title: 'Acceso Denegado',
+            description: 'Solo puedes modificar tus propias citas.',
+            color: 'red',
+            icon: 'i-heroicons-lock-closed'
+        })
+        return
+    }
+
+    selectedAppointment.value = { ...apt }
     isModalOpen.value = true
 }
 
 const handleEventDrop = async (info) => {
+    const apt = info.event.extendedProps
+    const user = currentUserProfile.value
+
+    if (!user) {
+        info.revert()
+        return
+    }
+
+    const isAdminOrReceptionist = ['admin', 'superadmin', 'receptionist'].includes(user.role)
+    const isOwner = apt.stylist_id === user.id
+
+    if (!isAdminOrReceptionist && !isOwner) {
+        useToast().add({
+            title: 'Acceso Denegado',
+            description: 'No tienes permiso para mover esta cita.',
+            color: 'red',
+            icon: 'i-heroicons-lock-closed'
+        })
+        info.revert()
+        return
+    }
+
     if (!confirm(`¿Mover cita a ${info.event.start.toLocaleString()}?`)) {
         info.revert()
         return
@@ -397,8 +442,7 @@ const handleEventDrop = async (info) => {
         alert('Error al mover cita: ' + error.message)
         info.revert()
     } else {
-        // Update local state implicitly or refresh?
-        // Let's just update local object to avoid flicker
+        // Update local object to avoid flicker
         const idx = appointments.value.findIndex(a => a.id === info.event.id)
         if (idx !== -1) {
             appointments.value[idx].start_time = info.event.start.toISOString()

@@ -5,14 +5,26 @@
         <h1 class="text-xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Caja y Ventas</h1>
         <p class="text-slate-500 dark:text-slate-400">Registro de transacciones y comisiones</p>
       </div>
-      
-      <div class="flex flex-col md:flex-row gap-2 w-full md:w-auto">
-        <div class="flex gap-2">
-            <UInput v-model="startDate" type="date" class="w-full md:w-auto" />
-            <UInput v-model="endDate" type="date" class="w-full md:w-auto" />
+            <div class="flex flex-col md:flex-row gap-4 items-end md:items-center">
+            <UFormGroup label="Desde">
+                <UInput type="date" v-model="startDate" />
+            </UFormGroup>
+            <UFormGroup label="Hasta">
+                <UInput type="date" v-model="endDate" />
+            </UFormGroup>
+            <UButton icon="i-heroicons-funnel" color="emerald" @click="fetchTransactions" :loading="loading" label="Filtrar" />
+            
+            <UButton 
+                v-if="userRole === 'admin'"
+                icon="i-heroicons-trash" 
+                color="red" 
+                variant="soft"
+                label="Limpiar Historial" 
+                :loading="clearingHistory"
+                @click="clearHistory"
+                class="ml-auto"
+            />
         </div>
-        <UButton icon="i-heroicons-funnel" label="Filtrar" color="emerald" @click="fetchTransactions" :loading="loading" />
-      </div>
     </div>
 
     <!-- KPI Cards -->
@@ -57,106 +69,76 @@
     <!-- Tabs -->
     <UTabs :items="items" class="w-full">
       <template #item="{ item }">
-        
-        <!-- Transactions Tab -->
-        <UCard v-if="item.key === 'transactions'" shadow="md" :ui="{ body: { padding: 'p-0' }, background: 'bg-white dark:bg-slate-900', ring: 'ring-1 ring-slate-200 dark:ring-slate-800' }">
-          <div class="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
-            <h3 class="font-bold text-slate-700 dark:text-slate-300">Historial de Transacciones</h3>
-            <div class="flex items-center gap-2">
-                <UInput v-model="search" icon="i-heroicons-magnifying-glass" placeholder="Buscar cliente, estilista..." size="sm" />
-                <UButton icon="i-heroicons-arrow-path" variant="ghost" color="gray" @click="fetchTransactions" :loading="loading" />
+        <div class="w-full">
+          <!-- Transactions Tab -->
+          <UCard v-if="item.key === 'transactions'" shadow="md" :ui="{ body: { padding: 'p-0' }, background: 'bg-white dark:bg-slate-900', ring: 'ring-1 ring-slate-200 dark:ring-slate-800' }">
+            <div class="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
+              <h3 class="font-bold text-slate-700 dark:text-slate-300">Historial de Transacciones</h3>
+              <div class="flex items-center gap-2">
+                  <UInput v-model="search" icon="i-heroicons-magnifying-glass" placeholder="Buscar cliente, estilista..." size="sm" />
+                  <UButton icon="i-heroicons-arrow-path" variant="ghost" color="gray" @click="fetchTransactions" :loading="loading" />
+              </div>
             </div>
-          </div>
 
-          <UTable 
-            :rows="paginatedTransactions" 
-            :columns="columns" 
-            :loading="loading" 
-            :sort="sort"
-            @update:sort="sort = $event"
-            sort-mode="manual"
-            class="w-full"
-            :ui="{ divide: 'divide-y divide-slate-200 dark:divide-slate-800', th: { color: 'text-slate-900 dark:text-white' }, td: { color: 'text-slate-500 dark:text-slate-400' } }"
-          >
-            <template #total_amount-data="{ row }">
-              <span class="font-bold text-emerald-600 dark:text-emerald-400">{{ formatCurrency(row.total_amount) }}</span>
-            </template>
+            <UTable 
+              :rows="paginatedTransactions" 
+              :columns="columns" 
+              :loading="loading" 
+              :sort="sort"
+              @update:sort="sort = $event"
+              sort-mode="manual"
+              class="w-full"
+              :ui="{ divide: 'divide-y divide-slate-200 dark:divide-slate-800', th: { color: 'text-slate-900 dark:text-white' }, td: { color: 'text-slate-500 dark:text-slate-400' } }"
+            >
+              <template #stylist_earnings-data="{ row }">
+                  <span class="font-bold text-emerald-600 dark:text-emerald-400">
+                      {{ formatCurrency((row.total_amount || 0) - (row.commission_amount || 0)) }}
+                  </span>
+              </template>
+
+              <template #commission_amount-data="{ row }">
+                  <span class="font-bold text-emerald-600 dark:text-emerald-400">
+                      {{ formatCurrency(row.commission_amount) }}
+                  </span>
+              </template>
+
+              <template #total_amount-data="{ row }">
+                <span class="font-bold text-slate-800 dark:text-slate-200">{{ formatCurrency(row.total_amount) }}</span>
+              </template>
+              
+              <template #details-data="{ row }">
+                  <div class="space-y-1">
+                      <div v-for="titem in row.transaction_items" :key="titem.name" class="text-xs">
+                           <UBadge :color="titem.item_type === 'service' ? 'blue' : 'purple'" variant="subtle" size="xs" class="mr-1">
+                              {{ titem.item_type === 'service' ? 'S' : 'P' }}
+                           </UBadge>
+                           <span class="text-slate-600 dark:text-slate-300">{{ titem.name }} (x{{ titem.quantity }})</span>
+                      </div>
+                  </div>
+              </template>
+
+              <template #client_name-data="{ row }">
+                  <span class="text-slate-700 dark:text-slate-300">{{ row.clients?.full_name || '-' }}</span>
+              </template>
+
+              <template #stylist_name-data="{ row }">
+                  <span class="text-slate-700 dark:text-slate-300">{{ row.profiles?.full_name || '-' }}</span>
+              </template>
+
+              <template #created_at-data="{ row }">
+                {{ formatDate(row.created_at) }}
+              </template>
+
+              <template #payment_method-data="{ row }">
+                <UBadge :color="getMethodColor(row.payment_method)" variant="subtle">{{ getMethodLabel(row.payment_method) }}</UBadge>
+              </template>
+            </UTable>
             
-            <template #commission_amount-data="{ row }">
-              <span class="text-slate-500 text-xs">{{ formatCurrency(row.commission_amount) }}</span>
-            </template>
-
-            <template #created_at-data="{ row }">
-              {{ formatDate(row.created_at) }}
-            </template>
-
-            <template #payment_method-data="{ row }">
-              <UBadge :color="getMethodColor(row.payment_method)" variant="subtle">{{ getMethodLabel(row.payment_method) }}</UBadge>
-            </template>
-          </UTable>
-          
-          <div class="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-center">
-            <UPagination v-model="page" :page-count="pageCount" :total="filteredTransactions.length" />
-          </div>
-        </UCard>
-
-        <!-- Stylists Report Tab -->
-        <UCard v-else-if="item.key === 'stylists'" shadow="md" :ui="{ body: { padding: 'p-0' }, background: 'bg-white dark:bg-slate-900', ring: 'ring-1 ring-slate-200 dark:ring-slate-800' }">
-          <div class="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
-             <h3 class="font-bold text-slate-700 dark:text-slate-300">Rendimiento por Estilista</h3>
-          </div>
-          
-          <UTable 
-            :rows="stylistStats" 
-            :columns="stylistColumns"
-            :loading="loading"
-            :ui="{ divide: 'divide-y divide-slate-200 dark:divide-slate-800', th: { color: 'text-slate-900 dark:text-white' }, td: { color: 'text-slate-500 dark:text-slate-400' } }"
-          >
-             <template #total_sales-data="{ row }">
-               <span class="font-bold text-slate-600 dark:text-slate-400">{{ formatCurrency(row.total_sales) }}</span>
-             </template>
-             <template #total_commissions-data="{ row }">
-               <span class="font-bold text-purple-600 dark:text-purple-400">{{ formatCurrency(row.total_commissions) }}</span>
-             </template>
-              <template #total_paid-data="{ row }">
-               <span class="font-bold text-emerald-600 dark:text-emerald-400">{{ formatCurrency(row.total_paid) }}</span>
-             </template>
-              <template #balance-data="{ row }">
-               <span :class="row.balance > 0 ? 'text-amber-600 font-bold' : 'text-slate-400'">{{ formatCurrency(row.balance) }}</span>
-             </template>
-
-             <template #commission_rate-data="{ row }">
-                <div class="flex flex-col gap-1">
-                    <div class="flex items-center gap-2 text-xs">
-                        <span class="text-slate-500 w-16">Servicios:</span>
-                        <span v-if="!row.editing" @click="row.editing = true" class="cursor-pointer hover:underline decoration-dashed font-medium">{{ row.commission_rate }}%</span>
-                        <UInput v-else v-model="row.temp_rate" type="number" size="2xs" class="w-14" />
-                    </div>
-                    <div class="flex items-center gap-2 text-xs">
-                        <span class="text-slate-500 w-16">Productos:</span>
-                         <span v-if="!row.editing" @click="row.editing = true" class="cursor-pointer hover:underline decoration-dashed font-medium">{{ row.product_commission_rate || 0 }}%</span>
-                         <div v-else class="flex gap-1">
-                             <UInput v-model="row.temp_product_rate" type="number" size="2xs" class="w-14" />
-                             <UButton icon="i-heroicons-check" size="2xs" color="emerald" @click="updateCommission(row)" />
-                             <UButton icon="i-heroicons-x-mark" size="2xs" color="gray" variant="ghost" @click="row.editing = false" />
-                         </div>
-                    </div>
-                </div>
-             </template>
-
-             <template #actions-data="{ row }">
-                 <UButton 
-                    label="Pagar" 
-                    size="xs" 
-                    color="emerald" 
-                    variant="soft" 
-                    icon="i-heroicons-banknotes" 
-                    @click="openPayoutModal(row)"
-                    :disabled="row.balance <= 0"
-                 />
-             </template>
-          </UTable>
-        </UCard>
+            <div class="p-4 border-t border-slate-100 dark:border-slate-800 flex justify-center">
+              <UPagination v-model="page" :page-count="pageCount" :total="filteredTransactions.length" />
+            </div>
+          </UCard>
+        </div>
       </template>
     </UTabs>
 
@@ -203,6 +185,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref, reactive, computed, onMounted } from 'vue'
+
 const client = useSupabaseClient()
 const headerTitle = useState('headerTitle', () => 'Caja')
 headerTitle.value = 'Caja'
@@ -218,19 +202,16 @@ const page = ref(1)
 const pageCount = 10
 const sort = ref({ column: 'created_at', direction: 'desc' })
 
+// Refs
 const loading = ref(false)
-const transactions = ref([])
-const payouts = ref([])
-const stylists = ref([])
+const transactions = ref<any[]>([])
+const payouts = ref<any[]>([])
+const stylists = ref<any[]>([])
 
 const items = [{
   key: 'transactions',
   label: 'Transacciones',
   icon: 'i-heroicons-list-bullet'
-}, {
-  key: 'stylists',
-  label: 'Reporte y Equipo',
-  icon: 'i-heroicons-user-group'
 }]
 
 // Date Navigation
@@ -242,7 +223,7 @@ const filteredTransactions = computed(() => {
     if (search.value) {
         const q = search.value.toLowerCase()
         result = result.filter(t => 
-            t.client?.full_name?.toLowerCase().includes(q) ||
+            t.clients?.full_name?.toLowerCase().includes(q) ||
             t.profiles?.full_name?.toLowerCase().includes(q) ||
             t.payment_method?.toLowerCase().includes(q)
         )
@@ -254,11 +235,11 @@ const filteredTransactions = computed(() => {
             let aVal = a[sort.value.column]
             let bVal = b[sort.value.column]
 
-            // Handle nested objects for sort if needed (e.g. client.full_name)
-            if (sort.value.column === 'client.full_name') {
-                aVal = a.client?.full_name
-                bVal = b.client?.full_name
-            } else if (sort.value.column === 'profiles.full_name') {
+            // Handle nested objects for sort
+            if (sort.value.column === 'client_name') {
+                aVal = a.clients?.full_name
+                bVal = b.clients?.full_name
+            } else if (sort.value.column === 'stylist_name') {
                 aVal = a.profiles?.full_name
                 bVal = b.profiles?.full_name
             }
@@ -281,24 +262,22 @@ const paginatedTransactions = computed(() => {
 // Columns
 const columns = [
   { key: 'created_at', label: 'Fecha', sortable: true },
-  { key: 'client.full_name', label: 'Cliente', sortable: true },
-  { key: 'profiles.full_name', label: 'Estilista', sortable: true }, // profiles is joined
+  { key: 'client_name', label: 'Cliente', sortable: true },
+  { key: 'stylist_name', label: 'Estilista', sortable: true },
+  { key: 'details', label: 'Detalle' },
   { key: 'payment_method', label: 'Método', sortable: true },
-  { key: 'total_amount', label: 'Monto', sortable: true },
-  { key: 'commission_amount', label: 'Comisión', sortable: true }
+  { key: 'stylist_earnings', label: 'Ganado (Estilista)' }, 
+  { key: 'commission_amount', label: 'Ganado (Peluquería)', sortable: true },
+  { key: 'total_amount', label: 'Total', sortable: true }
 ]
 
-const stylistColumns = [
-  { key: 'full_name', label: 'Estilista' },
-  { key: 'transaction_count', label: 'Citas' },
-  { key: 'total_commissions', label: 'Ganado' },
-  { key: 'total_paid', label: 'Pagado' },
-  { key: 'balance', label: 'Pendiente' },
-  { key: 'commission_rate', label: '% Comisiones' }, // Combined column
-  { key: 'actions', label: '' }
-]
+const stylistColumns = computed(() => {
+    return [] // Deprecated
+})
 
 // Fetch Data
+const userRole = useState('userRole')
+
 const fetchTransactions = async () => {
   loading.value = true
   
@@ -308,35 +287,26 @@ const fetchTransactions = async () => {
     return
   }
 
-  const { data, error } = await client
+  let query = client
     .from('transactions')
-    .select('*, clients(full_name), profiles(full_name)')
+    .select('*, clients(full_name), profiles(full_name, commission_type), transaction_items(name, quantity, item_type)')
     .gte('created_at', `${startDate.value}T00:00:00`)
     .lte('created_at', `${endDate.value}T23:59:59`)
     .order('created_at', { ascending: false })
+  
+  // Si NO es admin, solo ver sus propias transacciones
+  if (userRole.value !== 'admin') {
+      query = query.eq('stylist_id', user.id)
+  }
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Error fetching transactions:', error)
+  }
 
   if (data) {
     transactions.value = data
-  }
-
-  // Fetch Payouts
-  const { data: payoutsData } = await client
-    .from('commission_payouts')
-    .select('*')
-    .gte('date', startDate.value)
-    .lte('date', endDate.value)
-  
-  if (payoutsData) payouts.value = payoutsData
-
-  // Fetch Stylists (Profiles) for the report
-  const { data: profilesData } = await client.from('profiles').select('*')
-  if (profilesData) {
-      stylists.value = profilesData.map(p => ({
-          ...p,
-          editing: false,
-          temp_rate: p.commission_rate,
-          temp_product_rate: p.product_commission_rate || 0
-      }))
   }
 
   loading.value = false
@@ -424,6 +394,31 @@ const savePayout = async () => {
         alert('Error al registrar pago: ' + e.message)
     } finally {
         payoutSaving.value = false
+    }
+}
+
+// Clear History Logic
+const clearingHistory = ref(false)
+
+const clearHistory = async () => {
+    if (!confirm('¿Estás seguro de que deseas ELIMINAR TODO EL HISTORIAL DE VENTAS Y PAGOS? esta acción no se puede deshacer y es solo para fines de pruebas o reinicio.')) return
+
+    clearingHistory.value = true
+    try {
+        // 1. Delete Transactions (cascades to items)
+        const { error: txError } = await client.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000') // Delete all not matching impossible UUID
+        if (txError) throw txError
+
+        // 2. Delete Payouts
+        const { error: pyError } = await client.from('commission_payouts').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+        if (pyError) throw pyError
+
+        alert('Historial eliminado correctamente.')
+        fetchTransactions()
+    } catch (e: any) {
+        alert('Error al eliminar historial: ' + e.message)
+    } finally {
+        clearingHistory.value = false
     }
 }
 

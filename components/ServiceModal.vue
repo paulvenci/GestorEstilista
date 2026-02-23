@@ -25,6 +25,10 @@
           </UFormGroup>
         </div>
 
+        <UFormGroup label="% Ganancia Peluquería" name="commission_rate" help="Porcentaje que gana la peluquería por este servicio">
+          <UInput v-model="form.commission_rate" type="number" icon="i-heroicons-receipt-percent" placeholder="0" />
+        </UFormGroup>
+
         <UFormGroup label="Estado" name="active">
           <UToggle v-model="form.active" />
           <span class="ml-2 text-sm text-gray-500">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
@@ -60,6 +64,7 @@ const form = ref({
   name: '',
   price: 0,
   duration_min: 30,
+  commission_rate: 0,
   active: true
 })
 
@@ -76,6 +81,7 @@ watch(() => props.modelValue, (val) => {
         name: '',
         price: 0,
         duration_min: 30,
+        commission_rate: 0,
         active: true
       }
     }

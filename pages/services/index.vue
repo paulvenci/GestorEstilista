@@ -23,6 +23,10 @@
           <span class="text-slate-500">{{ row.duration_min }} min</span>
         </template>
 
+        <template #commission_rate-data="{ row }">
+          <span class="font-medium text-slate-700 dark:text-slate-300">{{ row.commission_rate || 0 }}%</span>
+        </template>
+
         <template #active-data="{ row }">
           <UBadge :color="row.active ? 'emerald' : 'gray'" variant="subtle" size="xs">{{ row.active ? 'Activo' : 'Inactivo' }}</UBadge>
         </template>
@@ -56,6 +60,7 @@ const columns = computed(() => {
     { key: 'name', label: 'Nombre' },
     { key: 'duration_min', label: 'Duración' },
     { key: 'price', label: 'Precio' },
+    { key: 'commission_rate', label: '% Ganancia' },
     { key: 'active', label: 'Estado' }
   ]
   if (userRole.value === 'admin') {

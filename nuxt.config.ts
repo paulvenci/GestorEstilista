@@ -11,9 +11,9 @@ export default defineNuxtConfig({
 
   modules: ['@nuxt/ui', '@pinia/nuxt', '@nuxtjs/supabase'],
 
-  // build: {
-  //   transpile: ['@fullcalendar/vue3', '@fullcalendar/core', '@fullcalendar/daygrid', '@fullcalendar/timegrid', '@fullcalendar/interaction', '@fullcalendar/list']
-  // },
+  build: {
+    transpile: ['@fullcalendar/vue3', '@fullcalendar/core', '@fullcalendar/daygrid', '@fullcalendar/timegrid', '@fullcalendar/interaction', '@fullcalendar/list']
+  },
 
   supabase: {
     redirect: false,

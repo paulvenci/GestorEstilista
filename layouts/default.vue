@@ -52,7 +52,7 @@
             to="/sales" 
             variant="ghost" 
             icon="i-heroicons-currency-dollar" 
-            label="Caja" 
+            label="Reportes" 
             block 
             class="justify-start px-4 py-3 transition-all duration-200 hover:bg-slate-800 dark:hover:bg-slate-800 text-slate-300 hover:text-white"
             active-class="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
@@ -62,7 +62,7 @@
           to="/services" 
           variant="ghost" 
           icon="i-heroicons-scissors" 
-          label="Catálogo" 
+          label="Servicios" 
           block 
           class="justify-start px-4 py-3 transition-all duration-200 hover:bg-slate-800 dark:hover:bg-slate-800 text-slate-300 hover:text-white"
           active-class="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
@@ -72,7 +72,7 @@
           to="/products" 
           variant="ghost" 
           icon="i-heroicons-cube" 
-          label="Inventario" 
+          label="Productos" 
           block 
           class="justify-start px-4 py-3 transition-all duration-200 hover:bg-slate-800 dark:hover:bg-slate-800 text-slate-300 hover:text-white"
           active-class="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
@@ -85,7 +85,7 @@
               to="/team" 
               variant="ghost" 
               icon="i-heroicons-user-group" 
-              label="Equipo" 
+              label="Personal" 
               block 
               class="justify-start px-4 py-3 mt-2 transition-all duration-200 hover:bg-slate-800 dark:hover:bg-slate-800 text-slate-300 hover:text-white"
               active-class="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
@@ -96,6 +96,16 @@
               variant="ghost" 
               icon="i-heroicons-building-storefront" 
               label="Sucursales" 
+              block 
+              class="justify-start px-4 py-3 transition-all duration-200 hover:bg-slate-800 dark:hover:bg-slate-800 text-slate-300 hover:text-white"
+              active-class="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
+              @click="isMobileMenuOpen = false"
+            />
+            <UButton 
+              to="/team/roles" 
+              variant="ghost" 
+              icon="i-heroicons-tag" 
+              label="Gestión de Roles" 
               block 
               class="justify-start px-4 py-3 transition-all duration-200 hover:bg-slate-800 dark:hover:bg-slate-800 text-slate-300 hover:text-white"
               active-class="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20"
@@ -130,9 +140,20 @@
 
       <div class="p-4 border-t border-slate-800 space-y-2 shrink-0">
         <div class="flex justify-between items-center px-2">
-          <span class="text-xs text-slate-500 uppercase font-bold tracking-wider">Configuración</span>
+          <span class="text-xs text-slate-500 uppercase font-bold tracking-wider">Ajustes</span>
           <ColorModeButton />
         </div>
+        <UButton 
+          to="/settings" 
+          color="gray" 
+          variant="ghost" 
+          icon="i-heroicons-cog-6-tooth" 
+          label="Configuración" 
+          block 
+          class="justify-start text-slate-300 hover:text-white hover:bg-slate-800"
+          active-class="bg-emerald-600 text-white shadow-lg shadow-emerald-900/20"
+          @click="isMobileMenuOpen = false"
+        />
         <UButton 
           color="gray" 
           variant="ghost" 

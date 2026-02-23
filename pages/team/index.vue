@@ -2,8 +2,8 @@
   <div class="space-y-6">
     <div class="flex justify-between items-center">
         <div class="hidden md:block">
-            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Equipo</h1>
-            <p class="text-slate-500 dark:text-slate-400 mt-1">Administra los usuarios y sus permisos.</p>
+            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Gestión Rol</h1>
+            <p class="text-slate-500 dark:text-slate-400 mt-1">Configura roles, permisos y esquemas de comisiones.</p>
         </div>
         <UButton label="Nuevo Usuario" icon="i-heroicons-user-plus" color="emerald" size="lg" @click="openCreateMemberModal" class="shadow-lg shadow-emerald-500/20" />
     </div>
@@ -20,7 +20,7 @@
         >
             <template #role-data="{ row }">
                 <UBadge :color="row.role === 'admin' ? 'purple' : 'blue'" variant="subtle">
-                    {{ row.role === 'admin' ? 'Administrador' : 'Estilista' }}
+                    {{ row.role === 'admin' ? 'Administrador' : 'Usuario' }}
                 </UBadge>
             </template>
             
@@ -31,8 +31,28 @@
                 <span v-else class="text-xs text-slate-400">Cargando...</span>
             </template>
 
+            <template #specialty_id-data="{ row }">
+                <UBadge v-if="row.specialty_id" color="gray" variant="solid">
+                    {{ specialtiesList.find(s => s.id === row.specialty_id)?.name || 'No definido' }}
+                </UBadge>
+                <span v-else class="text-xs text-slate-400">-</span>
+            </template>
+
             <template #actions-data="{ row }">
                 <UButton icon="i-heroicons-pencil-square" color="gray" variant="ghost" size="xs" @click="editMember(row)" />
+            </template>
+
+            <template #commission_type-data="{ row }">
+                <span class="text-xs font-medium px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    {{ row.commission_type === 'both' ? 'Arriendo + Comisión' : row.commission_type === 'fixed_rent' ? 'Arriendo Mensual' : 'Solo Comisión' }}
+                </span>
+            </template>
+
+            <template #fixed_rent_cost-data="{ row }">
+                <span v-if="row.commission_type === 'fixed_rent'" class="font-medium text-slate-700 dark:text-slate-200">
+                    {{ formatCurrency(row.fixed_rent_cost) }}
+                </span>
+                <span v-else class="text-slate-400">-</span>
             </template>
 
             <template #commission_rate-data="{ row }">
@@ -51,7 +71,7 @@
             <template #header>
                 <div class="flex items-center justify-between">
                     <h3 class="text-base font-semibold text-gray-900 dark:text-white">
-                        {{ editingMember ? 'Editar Miembro' : 'Nuevo Miembro' }}
+                        {{ editingMember ? 'Editar Usuario y Rol' : 'Nuevo Usuario' }}
                     </h3>
                     <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="isOpen = false" />
                 </div>
@@ -75,20 +95,8 @@
                 </div>
 
                 <UFormGroup label="Rol" name="role">
-                    <USelect v-model="form.role" :options="[{ label: 'Administrador', value: 'admin' }, { label: 'Estilista', value: 'stylist' }]" />
-                    <p class="text-xs text-slate-500 mt-1" v-if="form.role === 'admin'">
-                        Nota: Los administradores tienen acceso completo a la configuración del negocio.
-                    </p>
+                    <USelect v-model="form.role" :options="[{ label: 'Administrador', value: 'admin' }, { label: 'Usuario', value: 'stylist' }]" />
                 </UFormGroup>
-                
-                <div v-if="form.role === 'stylist'" class="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border border-slate-100 dark:border-slate-800">
-                    <UFormGroup label="% Comisión Servicios" name="commission_rate" help="Por defecto para servicios">
-                        <UInput v-model="form.commission_rate" type="number" icon="i-heroicons-scissors" placeholder="40" />
-                    </UFormGroup>
-                    <UFormGroup label="% Comisión Productos" name="product_commission_rate" help="Por venta de productos">
-                        <UInput v-model="form.product_commission_rate" type="number" icon="i-heroicons-shopping-bag" placeholder="10" />
-                    </UFormGroup>
-                </div>
 
                 <UFormGroup label="Sucursal Asignada" name="branch">
                     <USelect 
@@ -99,6 +107,44 @@
                         placeholder="Selecciona una sucursal"
                     />
                 </UFormGroup>
+
+                <UFormGroup label="Especialidad" name="specialty" v-if="form.role === 'stylist'">
+                    <USelect
+                        v-model="form.specialty_id"
+                        :options="specialtiesList"
+                        option-attribute="name"
+                        value-attribute="id"
+                        placeholder="Selecciona una especialidad"
+                        clearable
+                    />
+                </UFormGroup>
+
+                <div class="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg border border-slate-200 dark:border-slate-700 space-y-4" v-if="form.role === 'stylist' || form.role === 'admin'">
+                    <p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Esquema de Ganancias</p>
+
+                    <!-- Opción: Arriendo puesto mensual -->
+                    <div class="space-y-2">
+                        <UCheckbox v-model="form.has_fixed_rent" label="Arriendo puesto mensual" />
+                        <div v-if="form.has_fixed_rent" class="pl-6">
+                            <UFormGroup label="Valor arriendo mensual" name="fixed_rent_cost">
+                                <UInput v-model="form.fixed_rent_cost" type="number" icon="i-heroicons-currency-dollar" placeholder="200000" size="sm" />
+                            </UFormGroup>
+                        </div>
+                    </div>
+
+                    <!-- Opción: Comisión -->
+                    <div class="space-y-3">
+                        <UCheckbox v-model="form.has_commission" label="Comisión (%)" />
+                        <div v-if="form.has_commission" class="grid grid-cols-2 gap-4 pl-6">
+                            <UFormGroup label="% Comisión Servicios" name="commission_rate" help="Porcentaje que GANA la peluquería por servicio">
+                                <UInput v-model="form.commission_rate" type="number" icon="i-heroicons-scissors" placeholder="0" size="sm" />
+                            </UFormGroup>
+                            <UFormGroup label="% Comisión Productos" name="product_commission_rate" help="Porcentaje que GANA la peluquería por venta de productos">
+                                <UInput v-model="form.product_commission_rate" type="number" icon="i-heroicons-shopping-bag" placeholder="0" size="sm" />
+                            </UFormGroup>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="flex justify-end gap-3 mt-6">
                     <UButton color="gray" variant="ghost" label="Cancelar" @click="isOpen = false" />
@@ -115,10 +161,11 @@ import { watch, ref, reactive, onMounted } from 'vue'
 
 const client = useSupabaseClient()
 const headerTitle = useState('headerTitle', () => 'Equipo')
-headerTitle.value = 'Equipo'
+headerTitle.value = 'Gestión Rol' // Updated Title
 const user = useSupabaseUser()
 const team = ref<any[]>([])
 const branches = ref<any[]>([])
+const specialtiesList = ref<any[]>([]) // Add specialties list
 const isOpen = ref(false)
 const saving = ref(false)
 const editingMember = ref<any>(null)
@@ -130,18 +177,29 @@ const form = reactive({
     password: '',
     role: 'stylist',
     branch_id: '',
-    commission_rate: 40,
-    product_commission_rate: 10
+    specialty_id: '',
+    commission_rate: 0,
+    product_commission_rate: 0,
+    has_fixed_rent: false,
+    has_commission: false,
+    fixed_rent_cost: 0
 })
 
 const columns = [
     { key: 'full_name', label: 'Nombre' },
     { key: 'role', label: 'Rol' },
-    { key: 'commission_rate', label: '% Servicios' },
-    { key: 'product_commission_rate', label: '% Productos' },
+    { key: 'specialty_id', label: 'Especialidad' }, // Add column
+    { key: 'commission_type', label: 'Tipo' },
+    { key: 'fixed_rent_cost', label: 'Arriendo' },
+    { key: 'commission_rate', label: '% Serv' },
+    { key: 'product_commission_rate', label: '% Prod' },
     { key: 'branch_id', label: 'Sucursal' },
     { key: 'actions', label: '' }
 ]
+
+const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(val)
+}
 
 const fetchTeam = async () => {
     let userId = user.value?.id
@@ -175,6 +233,13 @@ const fetchTeam = async () => {
             .eq('active', true)
         
         if (branchData) branches.value = branchData
+
+        const { data: specData } = await client
+            .from('specialties')
+            .select('id, name')
+            .eq('tenant_id', currentTenantId.value)
+        
+        if (specData) specialtiesList.value = specData
     }
 }
 
@@ -189,8 +254,12 @@ const openCreateMemberModal = () => {
     form.password = ''
     form.role = 'stylist'
     form.branch_id = ''
-    form.commission_rate = 40
-    form.product_commission_rate = 10
+    form.specialty_id = ''
+    form.commission_rate = 0
+    form.product_commission_rate = 0
+    form.has_fixed_rent = false
+    form.has_commission = false
+    form.fixed_rent_cost = 0
     isOpen.value = true
 }
 
@@ -198,9 +267,13 @@ const editMember = (member: any) => {
     editingMember.value = member
     form.full_name = member.full_name
     form.role = member.role
-    form.branch_id = member.branch_id
+    form.branch_id = member.branch_id || ''
+    form.specialty_id = member.specialty_id || ''
     form.commission_rate = member.commission_rate || 0
     form.product_commission_rate = member.product_commission_rate || 0
+    form.has_fixed_rent = member.commission_type === 'fixed_rent' || member.commission_type === 'both'
+    form.has_commission = member.commission_type === 'percentage' || member.commission_type === 'both'
+    form.fixed_rent_cost = member.fixed_rent_cost || 0
     isOpen.value = true
 }
 
@@ -212,20 +285,33 @@ const saveMember = async () => {
 
     saving.value = true
     try {
+        // Derivar commission_type de los checkboxes
+        const commissionType = form.has_fixed_rent && form.has_commission ? 'both'
+            : form.has_fixed_rent ? 'fixed_rent'
+            : form.has_commission ? 'percentage'
+            : 'percentage' // default si no selecciona nada
+
+        const commonData = {
+            role: form.role,
+            branch_id: form.branch_id || null,
+            specialty_id: form.specialty_id || null,
+            commission_type: commissionType,
+            commission_rate: form.has_commission ? Number(form.commission_rate) : 0,
+            product_commission_rate: form.has_commission ? Number(form.product_commission_rate) : 0,
+            fixed_rent_cost: form.has_fixed_rent ? Number(form.fixed_rent_cost) : 0
+        }
+
         if (editingMember.value) {
             // Update Existing (Profile Only via RLS)
-            const { error } = await client
+            const { data: updatedData, error } = await client
                 .from('profiles')
-                .update({
-                    role: form.role,
-                    branch_id: form.branch_id,
-                    commission_rate: form.commission_rate,
-                    product_commission_rate: form.product_commission_rate
-                })
+                .update(commonData)
                 .eq('id', editingMember.value.id)
+                .select()
 
             if (error) throw error
-            alert('Miembro actualizado correctamente')
+            
+            alert('Miembro actualizado correctamente.')
         } else {
             // Create New (Via API)
             const response = await $fetch('/api/admin/users', {
@@ -234,11 +320,8 @@ const saveMember = async () => {
                     email: form.email,
                     password: form.password,
                     full_name: form.full_name,
-                    role: form.role,
-                    branch_id: form.branch_id || null,
                     tenant_id: currentTenantId.value,
-                    commission_rate: form.commission_rate,
-                    product_commission_rate: form.product_commission_rate
+                    ...commonData
                 }
             })
             alert('Usuario creado correctamente')

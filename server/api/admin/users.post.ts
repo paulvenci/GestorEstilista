@@ -33,9 +33,7 @@ export default defineEventHandler(async (event) => {
 
     // Check body for tenant_id first (we need it for validation)
     const body = await readBody(event)
-    const { email, password, full_name, role, tenant_id, branch_id } = body
-
-
+    const { email, password, full_name, role, tenant_id, branch_id, commission_rate, product_commission_rate, commission_type, fixed_rent_cost } = body
 
     if (requesterProfile.role === 'superadmin') {
         // Superadmin can create anywhere
@@ -105,7 +103,11 @@ export default defineEventHandler(async (event) => {
                 full_name: full_name,
                 role: role || 'stylist',
                 tenant_id: tenant_id,
-                branch_id: branch_id || null
+                branch_id: branch_id || null,
+                commission_rate: Number(commission_rate) || 0,
+                product_commission_rate: Number(product_commission_rate) || 0,
+                commission_type: commission_type || 'percentage',
+                fixed_rent_cost: Number(fixed_rent_cost) || 0
             })
             .eq('id', newUser.user.id)
 
@@ -126,7 +128,11 @@ export default defineEventHandler(async (event) => {
                 full_name: full_name,
                 role: role || 'stylist',
                 tenant_id: tenant_id,
-                branch_id: branch_id || null
+                branch_id: branch_id || null,
+                commission_rate: Number(commission_rate) || 0,
+                product_commission_rate: Number(product_commission_rate) || 0,
+                commission_type: commission_type || 'percentage',
+                fixed_rent_cost: Number(fixed_rent_cost) || 0
             })
 
         if (insertError) {
