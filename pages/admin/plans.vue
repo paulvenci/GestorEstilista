@@ -33,14 +33,22 @@
 
         <ul class="space-y-3 text-sm text-slate-600 dark:text-slate-300 mb-6">
           <li class="flex items-center gap-2">
-            <UIcon name="i-heroicons-users" class="text-emerald-500" />
+            <UIcon name="i-heroicons-users" class="text-emerald-500 w-5 h-5" />
             <span v-if="plan.max_users >= 9999">Usuarios Ilimitados</span>
             <span v-else>Hasta {{ plan.max_users }} Usuarios</span>
           </li>
           <li class="flex items-center gap-2">
-            <UIcon name="i-heroicons-building-storefront" class="text-emerald-500" />
+            <UIcon name="i-heroicons-building-storefront" class="text-emerald-500 w-5 h-5" />
             <span v-if="plan.max_branches >= 9999">Sucursales Ilimitadas</span>
             <span v-else>Hasta {{ plan.max_branches }} Sucursales</span>
+          </li>
+          <li v-if="plan.features?.whatsapp" class="flex items-center gap-2">
+            <UIcon name="i-heroicons-chat-bubble-left-right" class="text-emerald-500 w-5 h-5" />
+            <span>Notificaciones WhatsApp</span>
+          </li>
+          <li v-if="plan.features?.dominio_personalizado" class="flex items-center gap-2 font-bold text-emerald-600 dark:text-emerald-400">
+            <UIcon name="i-heroicons-globe-alt" class="w-5 h-5" />
+            <span>Dominio Personalizado (.cl)</span>
           </li>
         </ul>
 
@@ -74,12 +82,20 @@
           </UFormGroup>
 
           <div class="grid grid-cols-2 gap-4">
-            <UFormGroup label="Máx. Usuarios" name="max_users" help="9999 para ilimitado">
+            <UFormGroup label="Máx. Usuarios" name="max_users">
               <UInput v-model="form.max_users" type="number" />
             </UFormGroup>
-            <UFormGroup label="Máx. Sucursales" name="max_branches" help="9999 para ilimitado">
+            <UFormGroup label="Máx. Sucursales" name="max_branches">
               <UInput v-model="form.max_branches" type="number" />
             </UFormGroup>
+          </div>
+
+          <div class="space-y-2 border-t pt-4 border-gray-100 dark:border-gray-800">
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Características Base</p>
+            <div class="grid grid-cols-2 gap-2">
+              <UCheckbox v-model="form.features.whatsapp" label="WhatsApp" />
+              <UCheckbox v-model="form.features.dominio_personalizado" label="Dominio Propio" />
+            </div>
           </div>
 
           <UFormGroup label="Estado" name="active">
@@ -126,7 +142,10 @@ const resetForm = () => {
     form.max_users = 1
     form.max_branches = 1
     form.active = true
-    form.features = {}
+    form.features = {
+        whatsapp: false,
+        dominio_personalizado: false
+    }
     editingPlan.value = null
 }
 
@@ -139,6 +158,10 @@ const openModal = (plan = null) => {
         form.max_users = plan.max_users
         form.max_branches = plan.max_branches
         form.active = plan.active
+        form.features = { 
+            whatsapp: plan.features?.whatsapp || false,
+            dominio_personalizado: plan.features?.dominio_personalizado || false
+        }
     }
     isOpen.value = true
 }

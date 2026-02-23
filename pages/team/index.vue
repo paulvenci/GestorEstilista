@@ -49,7 +49,7 @@
             </template>
 
             <template #fixed_rent_cost-data="{ row }">
-                <span v-if="row.commission_type === 'fixed_rent'" class="font-medium text-slate-700 dark:text-slate-200">
+                <span v-if="row.commission_type === 'fixed_rent' || row.commission_type === 'both'" class="font-medium text-slate-700 dark:text-slate-200">
                     {{ formatCurrency(row.fixed_rent_cost) }}
                 </span>
                 <span v-else class="text-slate-400">-</span>
