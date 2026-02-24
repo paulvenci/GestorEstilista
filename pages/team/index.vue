@@ -8,6 +8,12 @@
         <UButton label="Nuevo Usuario" icon="i-heroicons-user-plus" color="emerald" size="lg" @click="openCreateMemberModal" class="shadow-lg shadow-emerald-500/20" />
     </div>
 
+    <!-- Plan Limit Info -->
+    <div v-if="planInfo" class="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/50 rounded-lg px-4 py-2">
+      <UIcon name="i-heroicons-information-circle" class="w-5 h-5 text-emerald-500" />
+      <span>Usuarios activos: <strong class="text-slate-700 dark:text-white">{{ team.length }}</strong> / <strong class="text-slate-700 dark:text-white">{{ planInfo.max_users }}</strong> ({{ planInfo.name }})</span>
+    </div>
+
     <UCard :ui="{ body: { padding: 'p-0' } }">
         <UTable 
             :rows="team" 
@@ -166,6 +172,7 @@ const user = useSupabaseUser()
 const team = ref<any[]>([])
 const branches = ref<any[]>([])
 const specialtiesList = ref<any[]>([]) // Add specialties list
+const planInfo = ref<any>(null)
 const isOpen = ref(false)
 const saving = ref(false)
 const editingMember = ref<any>(null)
@@ -240,6 +247,16 @@ const fetchTeam = async () => {
             .eq('tenant_id', currentTenantId.value)
         
         if (specData) specialtiesList.value = specData
+
+        // Fetch plan info for limits
+        if (!planInfo.value) {
+            const { data: tenant } = await client
+                .from('tenants')
+                .select('plan_id, plans ( name, max_users, max_branches )')
+                .eq('id', currentTenantId.value)
+                .single()
+            if (tenant?.plans) planInfo.value = tenant.plans
+        }
     }
 }
 
@@ -248,6 +265,11 @@ watch(user, () => {
 }, { immediate: true })
 
 const openCreateMemberModal = () => {
+    // Validate plan limits
+    if (planInfo.value && team.value.length >= planInfo.value.max_users) {
+        alert(`Has alcanzado el límite de ${planInfo.value.max_users} usuario(s) de tu plan "${planInfo.value.name}". Mejora tu plan para agregar más usuarios.`)
+        return
+    }
     editingMember.value = null
     form.full_name = ''
     form.email = ''

@@ -259,14 +259,23 @@ const methods = [
 
 // Computed Options
 const allItemOptions = computed(() => {
-    const sOpts = (props.services || []).map(s => ({
+    // Filter services by selected stylist's specialty
+    const selectedStylistData = (props.stylists || []).find((s: any) => s.id === appointment.value.stylist_id)
+    const specialtyId = selectedStylistData?.specialty_id
+
+    const filteredServices = (props.services || []).filter((s: any) => {
+        if (!specialtyId) return true // No specialty on stylist = show all
+        return s.specialty_id === specialtyId || !s.specialty_id // Match specialty or unassigned
+    })
+
+    const sOpts = filteredServices.map((s: any) => ({
         id: s.id,
         label: `✂️ ${s.name} (${s.duration_min} min) - ${formatCurrency(s.price)}`,
         value: s,
         type: 'service'
     }))
 
-    const pOpts = (props.products || []).map(p => ({
+    const pOpts = (props.products || []).map((p: any) => ({
         id: p.id,
         label: `🛍️ ${p.name} - ${formatCurrency(p.price)} (Stock: ${p.stock})`,
         value: p,

@@ -41,7 +41,7 @@
       <UCard>
         <div class="flex flex-col">
             <span class="text-sm text-slate-500 font-medium">Sucursales</span>
-            <span class="text-2xl font-bold text-blue-600">{{ branches.length }} / {{ tenant.plans?.max_branches || 1 }}</span>
+            <span class="text-2xl font-bold text-blue-600">{{ activeBranchCount }} / {{ tenant.plans?.max_branches || 1 }}</span>
         </div>
       </UCard>
     </div>
@@ -50,7 +50,7 @@
     <div class="space-y-4">
         <div class="flex justify-between items-center">
             <h2 class="text-xl font-bold text-slate-900 dark:text-white">Sucursales</h2>
-            <UButton label="Nueva Sucursal" icon="i-heroicons-plus" color="emerald" size="sm" @click="isBranchModalOpen = true" />
+            <UButton label="Nueva Sucursal" icon="i-heroicons-plus" color="emerald" size="sm" @click="openCreateBranchModal" />
         </div>
 
         <UCard :ui="{ body: { padding: 'p-0' } }">
@@ -65,6 +65,23 @@
                 </template>
                 <template #actions-data="{ row }">
                     <UButton icon="i-heroicons-pencil-square" color="gray" variant="ghost" size="xs" @click="editBranch(row)" />
+                    <UButton 
+                      v-if="row.active && !row.is_main" 
+                      icon="i-heroicons-trash" 
+                      color="red" 
+                      variant="ghost" 
+                      size="xs" 
+                      @click="confirmDeleteBranch(row)" 
+                    />
+                    <UButton 
+                      v-if="!row.active" 
+                      icon="i-heroicons-arrow-path" 
+                      color="emerald" 
+                      variant="ghost" 
+                      size="xs"
+                      title="Reactivar sucursal"
+                      @click="reactivateBranch(row)" 
+                    />
                 </template>
             </UTable>
         </UCard>
@@ -74,7 +91,7 @@
     <div class="space-y-4" v-if="users.length > 0 || true">
          <div class="flex justify-between items-center">
             <h2 class="text-xl font-bold text-slate-900 dark:text-white">Usuarios</h2>
-            <UButton label="Nuevo Usuario" icon="i-heroicons-user-plus" color="emerald" size="sm" @click="openCreateUserModal" />
+            <UButton label="Nuevo Usuario" icon="i-heroicons-user-plus" color="emerald" size="sm" @click="openCreateUserModalChecked" />
          </div>
          <UCard :ui="{ body: { padding: 'p-0' } }">
             <UTable :rows="users" :columns="userColumns">
@@ -217,12 +234,40 @@
         </UCard>
     </UModal>
 
+    <!-- Delete Branch Confirmation Modal -->
+    <UModal v-model="isDeleteBranchOpen">
+        <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
+            <template #header>
+                <div class="flex items-center gap-2">
+                    <UIcon name="i-heroicons-exclamation-triangle" class="w-5 h-5 text-red-500" />
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">Eliminar Sucursal</h3>
+                </div>
+            </template>
+            
+            <div class="py-2 space-y-3">
+                <p class="text-sm text-slate-600 dark:text-slate-300">
+                    ¿Estás seguro de que quieres eliminar la sucursal <strong>"{{ deletingBranch?.name }}"</strong>?
+                </p>
+                <p class="text-xs text-slate-400">
+                    La sucursal será desactivada. Podrás reactivarla más adelante si lo necesitas.
+                </p>
+            </div>
+
+            <template #footer>
+                <div class="flex justify-end gap-3">
+                    <UButton color="gray" variant="ghost" label="Cancelar" @click="isDeleteBranchOpen = false" />
+                    <UButton color="red" label="Eliminar" icon="i-heroicons-trash" :loading="deletingBranchLoading" @click="softDeleteBranch" />
+                </div>
+            </template>
+        </UCard>
+    </UModal>
+
   </div>
 </template>
 
 <script setup lang="ts">
 // Explicit imports
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 
 definePageMeta({
   layout: 'admin',
@@ -260,8 +305,16 @@ const userForm = reactive({
     branch_id: ''
 })
 
+// --- Soft Delete State ---
+const isDeleteBranchOpen = ref(false)
+const deletingBranch = ref<any>(null)
+const deletingBranchLoading = ref(false)
+
+const activeBranchCount = computed(() => {
+    return branches.value.filter((b: any) => b.active).length
+})
+
 const openCreateUserModal = () => {
-    console.log('Opening Create User Modal')
     editingUser.value = null
     userForm.full_name = ''
     userForm.email = ''
@@ -269,6 +322,73 @@ const openCreateUserModal = () => {
     userForm.role = 'stylist'
     userForm.branch_id = ''
     isUserModalOpen.value = true
+}
+
+const openCreateUserModalChecked = () => {
+    // Validate plan limits
+    const maxUsers = tenant.value?.plans?.max_users || 999
+    if (users.value.length >= maxUsers) {
+        alert(`Has alcanzado el límite de ${maxUsers} usuario(s) del plan "${tenant.value?.plans?.name}". Mejora el plan para agregar más usuarios.`)
+        return
+    }
+    openCreateUserModal()
+}
+
+const openCreateBranchModal = () => {
+    // Validate plan limits
+    const maxBranches = tenant.value?.plans?.max_branches || 1
+    if (activeBranchCount.value >= maxBranches) {
+        alert(`Has alcanzado el límite de ${maxBranches} sucursal(es) activa(s) del plan "${tenant.value?.plans?.name}". Mejora el plan para agregar más sucursales.`)
+        return
+    }
+    editingBranchId.value = null
+    newBranch.name = ''
+    newBranch.address = ''
+    isBranchModalOpen.value = true
+}
+
+const confirmDeleteBranch = (branch: any) => {
+    deletingBranch.value = branch
+    isDeleteBranchOpen.value = true
+}
+
+const softDeleteBranch = async () => {
+    if (!deletingBranch.value) return
+    deletingBranchLoading.value = true
+    try {
+        const { error } = await client
+            .from('branches')
+            .update({ active: false })
+            .eq('id', deletingBranch.value.id)
+        if (error) throw error
+        isDeleteBranchOpen.value = false
+        deletingBranch.value = null
+        await fetchTenantDetails()
+        alert('Sucursal eliminada correctamente.')
+    } catch (e: any) {
+        alert('Error: ' + e.message)
+    } finally {
+        deletingBranchLoading.value = false
+    }
+}
+
+const reactivateBranch = async (branch: any) => {
+    const maxBranches = tenant.value?.plans?.max_branches || 1
+    if (activeBranchCount.value >= maxBranches) {
+        alert(`No puedes reactivar esta sucursal. Has alcanzado el límite de ${maxBranches} sucursal(es) activa(s) del plan.`)
+        return
+    }
+    try {
+        const { error } = await client
+            .from('branches')
+            .update({ active: true })
+            .eq('id', branch.id)
+        if (error) throw error
+        await fetchTenantDetails()
+        alert('Sucursal reactivada correctamente.')
+    } catch (e: any) {
+        alert('Error: ' + e.message)
+    }
 }
 
 const editUser = (user: any) => {

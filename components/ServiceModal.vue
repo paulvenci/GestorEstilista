@@ -29,6 +29,16 @@
           <UInput v-model="form.commission_rate" type="number" icon="i-heroicons-receipt-percent" placeholder="0" />
         </UFormGroup>
 
+        <UFormGroup label="Especialidad / Profesión" name="specialty_id" help="Relaciona este servicio con una especialidad para filtrar en el agendamiento online">
+          <USelect 
+            v-model="form.specialty_id" 
+            :options="[{ id: '', name: 'Sin especialidad (todas)' }, ...specialties]" 
+            option-attribute="name" 
+            value-attribute="id" 
+            placeholder="Selecciona una especialidad" 
+          />
+        </UFormGroup>
+
         <UFormGroup label="Estado" name="active">
           <UToggle v-model="form.active" />
           <span class="ml-2 text-sm text-gray-500">{{ form.active ? 'Activo' : 'Inactivo' }}</span>
@@ -65,9 +75,11 @@ const form = ref({
   price: 0,
   duration_min: 30,
   commission_rate: 0,
+  specialty_id: '',
   active: true
 })
 
+const specialties = ref<any[]>([])
 const saving = ref(false)
 const isEdit = computed(() => !!form.value.id)
 
@@ -82,6 +94,7 @@ watch(() => props.modelValue, (val) => {
         price: 0,
         duration_min: 30,
         commission_rate: 0,
+        specialty_id: '',
         active: true
       }
     }
@@ -106,6 +119,9 @@ const saveService = async () => {
         delete payload.id
     }
 
+    // Handle empty specialty_id
+    if (!payload.specialty_id) payload.specialty_id = null
+
     let error
     if (isEdit.value) {
       const { error: err } = await client.from('services').update(payload).eq('id', form.value.id)
@@ -126,4 +142,17 @@ const saveService = async () => {
     saving.value = false
   }
 }
+
+const fetchSpecialties = async () => {
+    const { data: { user } } = await client.auth.getUser()
+    if (!user) return
+    const { data: profile } = await client.from('profiles').select('tenant_id').eq('id', user.id).single()
+    if (!profile) return
+    const { data } = await client.from('specialties').select('id, name').eq('tenant_id', profile.tenant_id)
+    if (data) specialties.value = data
+}
+
+onMounted(() => {
+    fetchSpecialties()
+})
 </script>
