@@ -62,11 +62,23 @@ const handleLogin = async () => {
 
     if (!user.value) {
          // Fallback force reload if session is stuck
-        window.location.href = '/'
+        window.location.href = '/login'
         return
     }
+
+    // Fetch tenant slug for redirect
+    const { data: profile } = await client
+      .from('profiles')
+      .select('tenants ( slug )')
+      .eq('id', user.value.id)
+      .single()
     
-    navigateTo('/')
+    const slug = profile?.tenants?.slug || ''
+    if (slug) {
+      navigateTo(`/${slug}/agenda`)
+    } else {
+      navigateTo('/admin') // superadmin without tenant
+    }
   } catch (e: any) {
     errorMsg.value = e.message || 'Error al iniciar sesión'
   } finally {

@@ -186,7 +186,11 @@ const workDays = [
 
 const bookingUrl = computed(() => {
     if (!tenantSlug.value) return ''
-    return `${window.location.origin}/book/${tenantSlug.value}`
+    const config = useRuntimeConfig()
+    const base = config.app.baseURL || '/'
+    // Ensure base ends with slash and slug follows
+    const normalizedBase = base.endsWith('/') ? base : base + '/'
+    return `${window.location.origin}${normalizedBase}${tenantSlug.value}`
 })
 
 const copyLink = () => {

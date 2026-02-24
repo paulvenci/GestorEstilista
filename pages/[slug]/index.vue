@@ -56,7 +56,7 @@
       <!-- Step 1: Select Professional -->
       <div v-if="step === 0" class="space-y-4">
         <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">Elige tu profesional</h2>
-        <p class="text-slate-500 dark:text-slate-400 text-sm mb-6">Selecciona con quién deseas agendar tu cita.</p>
+        <p class="text-slate-500 dark:text-slate-400 text-sm mb-6">Selecciona con qui├®n deseas agendar tu cita.</p>
         
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <button
@@ -75,7 +75,7 @@
               <div>
                 <h3 class="font-semibold text-slate-900 dark:text-white text-lg">{{ stylist.full_name }}</h3>
                 <p class="text-sm text-emerald-400" v-if="stylist.specialties?.name">{{ stylist.specialties.name }}</p>
-                <p class="text-xs text-slate-500" v-if="stylist.branches?.name">📍 {{ stylist.branches.name }}</p>
+                <p class="text-xs text-slate-500" v-if="stylist.branches?.name">­ƒôì {{ stylist.branches.name }}</p>
               </div>
             </div>
             <div v-if="selectedStylist?.id === stylist.id" class="absolute top-3 right-3">
@@ -148,7 +148,7 @@
           </div>
 
           <div v-else-if="dayClosed" class="text-center py-8">
-            <p class="text-slate-500 dark:text-slate-400">🚫 Cerrado este día. Selecciona otra fecha.</p>
+            <p class="text-slate-500 dark:text-slate-400">­ƒÜ½ Cerrado este d├¡a. Selecciona otra fecha.</p>
           </div>
           
           <div v-else class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
@@ -171,7 +171,7 @@
           </div>
 
           <div v-if="timeSlots.length === 0 && !loadingSlots && !dayClosed" class="text-center py-8">
-            <p class="text-slate-500 dark:text-slate-400">No hay horarios configurados para este día.</p>
+            <p class="text-slate-500 dark:text-slate-400">No hay horarios configurados para este d├¡a.</p>
           </div>
         </div>
       </div>
@@ -187,12 +187,12 @@
             <input 
               v-model="clientForm.name" 
               type="text"
-              placeholder="Ej: María López"
+              placeholder="Ej: Mar├¡a L├│pez"
               class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Correo electrónico</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Correo electr├│nico</label>
             <input 
               v-model="clientForm.email" 
               type="email"
@@ -201,7 +201,7 @@
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Teléfono *</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Tel├®fono *</label>
             <input 
               v-model="clientForm.phone" 
               type="tel"
@@ -227,7 +227,7 @@
           <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/10 flex items-center justify-center">
             <svg class="w-10 h-10 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
           </div>
-          <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">¡Cita agendada!</h2>
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">┬íCita agendada!</h2>
           <p class="text-slate-500 dark:text-slate-400">{{ confirmationMessage }}</p>
         </div>
 
@@ -238,11 +238,11 @@
             <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Servicio</span><span class="text-slate-900 dark:text-white font-medium">{{ selectedService?.name }}</span></div>
             <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Fecha</span><span class="text-slate-900 dark:text-white font-medium">{{ formatDate(selectedDate) }}</span></div>
             <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Hora</span><span class="text-slate-900 dark:text-white font-medium">{{ selectedTime }}</span></div>
-            <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Duración</span><span class="text-slate-900 dark:text-white font-medium">{{ selectedService?.duration_min }} min</span></div>
+            <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Duraci├│n</span><span class="text-slate-900 dark:text-white font-medium">{{ selectedService?.duration_min }} min</span></div>
             <hr class="border-white/10">
             <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Cliente</span><span class="text-slate-900 dark:text-white font-medium">{{ clientForm.name }}</span></div>
-            <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Teléfono</span><span class="text-slate-900 dark:text-white font-medium">{{ clientForm.phone }}</span></div>
-            <div class="flex justify-between"><span class="text-slate-400">Estado</span><span class="text-amber-400 font-medium">⏳ Pendiente de confirmación</span></div>
+            <div class="flex justify-between"><span class="text-slate-500 dark:text-slate-400">Tel├®fono</span><span class="text-slate-900 dark:text-white font-medium">{{ clientForm.phone }}</span></div>
+            <div class="flex justify-between"><span class="text-slate-400">Estado</span><span class="text-amber-400 font-medium">ÔÅ│ Pendiente de confirmaci├│n</span></div>
           </div>
         </div>
 
@@ -261,7 +261,7 @@
           @click="step--"
           class="px-6 py-3 rounded-xl bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 font-medium hover:bg-slate-200 dark:hover:bg-white/10 transition-all"
         >
-          ← Atrás
+          ÔåÉ Atr├ís
         </button>
         <div v-else></div>
 
@@ -274,7 +274,7 @@
             ? 'bg-emerald-500 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/20' 
             : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'"
         >
-          Continuar →
+          Continuar ÔåÆ
         </button>
 
         <button
@@ -388,7 +388,7 @@ const fetchData = async () => {
     }
 
     if (tenant.status !== 'active') {
-      error.value = 'Este negocio no está disponible en este momento.'
+      error.value = 'Este negocio no est├í disponible en este momento.'
       return
     }
 
@@ -522,7 +522,7 @@ const formatDate = (dateStr: string) => {
 useHead({
   title: `Agendar Cita | ${tenantName.value || 'Reserva Online'}`,
   meta: [
-    { name: 'description', content: 'Agenda tu cita online de forma rápida y sencilla.' }
+    { name: 'description', content: 'Agenda tu cita online de forma r├ípida y sencilla.' }
   ]
 })
 

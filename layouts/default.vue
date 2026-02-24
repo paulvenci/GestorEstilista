@@ -29,7 +29,7 @@
       
       <nav class="flex-1 p-4 space-y-4 mt-4 overflow-y-auto custom-scrollbar">
         <UButton 
-          to="/" 
+          :to="`/${tenantSlug}/agenda`" 
           variant="ghost" 
           icon="i-heroicons-calendar" 
           label="Agenda" 
@@ -39,7 +39,7 @@
           @click="isMobileMenuOpen = false"
         />
         <UButton 
-          to="/clients" 
+          :to="`/${tenantSlug}/clientes`" 
           variant="ghost" 
           icon="i-heroicons-users" 
           label="Clientes" 
@@ -49,7 +49,7 @@
           @click="isMobileMenuOpen = false"
         />
         <UButton 
-            to="/sales" 
+            :to="`/${tenantSlug}/reportes`" 
             variant="ghost" 
             icon="i-heroicons-currency-dollar" 
             label="Reportes" 
@@ -59,7 +59,7 @@
             @click="isMobileMenuOpen = false"
         />
         <UButton 
-          to="/services" 
+          :to="`/${tenantSlug}/servicios`" 
           variant="ghost" 
           icon="i-heroicons-scissors" 
           label="Servicios" 
@@ -69,7 +69,7 @@
           @click="isMobileMenuOpen = false"
         />
         <UButton 
-          to="/products" 
+          :to="`/${tenantSlug}/productos`" 
           variant="ghost" 
           icon="i-heroicons-cube" 
           label="Productos" 
@@ -82,7 +82,7 @@
         <div v-if="userRole === 'admin'" class="pt-4 mt-4 border-t border-slate-800">
             <span class="px-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Gestión</span>
             <UButton 
-              to="/team" 
+              :to="`/${tenantSlug}/equipo`" 
               variant="ghost" 
               icon="i-heroicons-user-group" 
               label="Personal" 
@@ -92,7 +92,7 @@
               @click="isMobileMenuOpen = false"
             />
             <UButton 
-              to="/branches" 
+              :to="`/${tenantSlug}/sucursales`" 
               variant="ghost" 
               icon="i-heroicons-building-storefront" 
               label="Sucursales" 
@@ -102,7 +102,7 @@
               @click="isMobileMenuOpen = false"
             />
             <UButton 
-              to="/team/roles" 
+              :to="`/${tenantSlug}/equipo/roles`" 
               variant="ghost" 
               icon="i-heroicons-tag" 
               label="Gestión de Roles" 
@@ -144,7 +144,7 @@
           <ColorModeButton />
         </div>
         <UButton 
-          to="/settings" 
+          :to="`/${tenantSlug}/configuracion`" 
           color="gray" 
           variant="ghost" 
           icon="i-heroicons-cog-6-tooth" 
@@ -196,15 +196,17 @@ import { watch, ref, reactive, onMounted } from 'vue'
 
 const client = useSupabaseClient()
 const router = useRouter()
+const route = useRoute()
 const user = useSupabaseUser()
 const config = useRuntimeConfig()
+const tenantSlug = useState<string>('tenantSlug', () => (route.params.slug as string) || '')
 const headerTitle = useState('headerTitle')
 const isMobileMenuOpen = ref(false)
 const userRole = useState<string | null>('userRole', () => null)
 
 const handleLogout = async () => {
   await client.auth.signOut()
-  router.push('/login')
+  navigateTo('/login')
 }
 
 const userInfo = reactive({
@@ -239,7 +241,7 @@ const fetchUserInfo = async () => {
         .select(`
             role,
             full_name,
-            tenants ( name ),
+            tenants ( name, slug ),
             branches ( name )
         `)
         .eq('id', userId)
@@ -256,6 +258,10 @@ const fetchUserInfo = async () => {
         userInfo.fullName = data.full_name || ''
         userInfo.tenantName = data.tenants?.name || ''
         userInfo.branchName = data.branches?.name || ''
+        // Set tenant slug for navigation
+        if (data.tenants?.slug) {
+            tenantSlug.value = data.tenants.slug
+        }
         
         console.log('User Info Loaded:', userInfo)
     } else {

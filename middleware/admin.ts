@@ -14,9 +14,9 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
             .maybeSingle()
 
         if (error || !profile || profile.role !== 'superadmin') {
-            return navigateTo('/')
+            return navigateTo('/login')
         }
     } catch (e) {
-        return navigateTo('/')
+        return navigateTo('/login')
     }
 })
