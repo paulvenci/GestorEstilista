@@ -18,23 +18,9 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     // If only 1 segment (/{slug}), it's a booking page - always public
     const isBookingPage = segments.length === 1 && !isAuthPage && !isAdminRoute && !isSuspendedPage
 
-    // 1. Booking pages are always public
-    if (isBookingPage) return
-
-    // 2. Suspended page - allow access
-    if (isSuspendedPage) return
-
-    // 3. Protected routes: tenant app routes and admin routes
-    if ((isTenantAppRoute || isAdminRoute) && !user.value) {
-        const { data: { session } } = await client.auth.getSession()
-        if (!session?.user) {
-            return navigateTo('/login')
-        }
-    }
-
-    // 4. If user is logged in and tries to access /login or /register, redirect to their tenant
+    // 1. Auth pages: check if user is logged in, redirect if so
     if (isAuthPage) {
-        if (user.value) {
+        if (user.value?.id) {
             const { data: profile } = await client
                 .from('profiles')
                 .select('tenants ( slug )')
@@ -43,15 +29,23 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
             const slug = profile?.tenants?.slug
             return navigateTo(slug ? `/${slug}/agenda` : '/admin')
         }
-        const { data: { session } } = await client.auth.getSession()
-        if (session?.user) {
-            const { data: profile } = await client
-                .from('profiles')
-                .select('tenants ( slug )')
-                .eq('id', session.user.id)
-                .single()
-            const slug = profile?.tenants?.slug
-            return navigateTo(slug ? `/${slug}/agenda` : '/admin')
+        // Not logged in - allow access to login/register
+        return
+    }
+
+    // 2. Booking pages are always public
+    if (isBookingPage) return
+
+    // 3. Suspended page - allow access
+    if (isSuspendedPage) return
+
+    // 4. Protected routes: tenant app routes and admin routes
+    if (isTenantAppRoute || isAdminRoute) {
+        if (!user.value?.id) {
+            const { data: { session } } = await client.auth.getSession()
+            if (!session?.user) {
+                return navigateTo('/login')
+            }
         }
     }
 })

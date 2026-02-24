@@ -5,7 +5,7 @@
         <p class="text-gray-500 dark:text-gray-400">Administra las preferencias de tu negocio.</p>
       </div>
 
-      <UCard>
+      <UCard v-if="isAdmin">
         <template #header>
             <h2 class="font-semibold text-lg flex items-center gap-2">
                 <UIcon name="i-heroicons-chat-bubble-left-right" class="text-green-500" />
@@ -96,6 +96,7 @@
                 </div>
             </div>
 
+            <template v-if="isAdmin">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <UFormGroup label="Activar Agendamiento Online" help="Los clientes podrán agendar citas desde el link público">
                     <UToggle v-model="bookingSettings.booking_enabled" />
@@ -138,6 +139,7 @@
                     Guardar Configuración de Agendamiento
                 </UButton>
             </div>
+            </template>
         </form>
       </UCard>
   </div>
@@ -145,6 +147,8 @@
 
 <script setup lang="ts">
 const client = useSupabaseClient()
+const userRole = ref('')
+const isAdmin = computed(() => ['admin', 'superadmin'].includes(userRole.value))
 const saving = ref(false)
 const testing = ref(false)
 const settings = ref({
@@ -222,6 +226,10 @@ const fetchSettings = async () => {
     try {
         const { data: { user } } = await client.auth.getUser()
         if (!user) return
+
+        // Get user role
+        const { data: profile } = await client.from('profiles').select('role').eq('id', user.id).single()
+        if (profile) userRole.value = profile.role || ''
 
         // Fetch tenant settings
         // Since we can't select * from tenants directly safely without proper RLS or exposing too much, 

@@ -15,6 +15,10 @@
           <UInput v-model="form.name" placeholder="Ej: Corte Caballero" autofocus />
         </UFormGroup>
 
+        <UFormGroup label="Descripción" name="description" help="Se muestra en la página de agendamiento para el cliente">
+          <UTextarea v-model="form.description" placeholder="Ej: Corte clásico con lavado y secado" :rows="2" />
+        </UFormGroup>
+
         <div class="grid grid-cols-2 gap-4">
           <UFormGroup label="Precio ($)" name="price" required>
             <UInput v-model="form.price" type="number" placeholder="0.00" />
@@ -72,6 +76,7 @@ const isOpen = computed({
 const form = ref({
   id: undefined,
   name: '',
+  description: '',
   price: 0,
   duration_min: 30,
   commission_rate: 0,
@@ -91,6 +96,7 @@ watch(() => props.modelValue, (val) => {
       form.value = {
         id: undefined,
         name: '',
+        description: '',
         price: 0,
         duration_min: 30,
         commission_rate: 0,

@@ -45,32 +45,24 @@ const handleLogin = async () => {
   errorMsg.value = ''
   
   try {
-    const { error } = await client.auth.signInWithPassword({
+    const { error, data: authData } = await client.auth.signInWithPassword({
       email: email.value,
       password: password.value
     })
 
     if (error) throw error
     
-    // Wait for user to be populated (handling mobile hydration/latency)
-    const user = useSupabaseUser()
-    let attempts = 0
-    while (!user.value && attempts < 10) {
-        await new Promise(r => setTimeout(r, 200)) // Reduced wait time
-        attempts++
-    }
-
-    if (!user.value) {
-         // Fallback force reload if session is stuck
-        window.location.href = '/login'
-        return
+    const userId = authData.user?.id
+    if (!userId) {
+      window.location.href = '/login'
+      return
     }
 
     // Fetch tenant slug for redirect
     const { data: profile } = await client
       .from('profiles')
       .select('tenants ( slug )')
-      .eq('id', user.value.id)
+      .eq('id', userId)
       .single()
     
     const slug = profile?.tenants?.slug || ''
