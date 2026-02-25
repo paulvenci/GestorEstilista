@@ -538,12 +538,18 @@ const saveUser = async () => {
             if (error) throw error
              alert('Usuario actualizado correctamente')
         } else {
-            // Create New User (Server API)
-            // We need tenant ID
+            // Create New User (via Supabase Edge Function)
             if (!tenant.value) throw new Error('Tenant context missing')
 
-            const response = await $fetch('/api/admin/users', {
+            const { data: { session } } = await client.auth.getSession()
+            if (!session) throw new Error('No active session')
+
+            const response = await $fetch(`https://hupbcynenviknhwnhwxb.supabase.co/functions/v1/create-user`, {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: {
                     email: userForm.email,
                     password: userForm.password,

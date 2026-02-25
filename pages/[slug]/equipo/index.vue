@@ -335,9 +335,16 @@ const saveMember = async () => {
             
             alert('Miembro actualizado correctamente.')
         } else {
-            // Create New (Via API)
-            const response = await $fetch('/api/admin/users', {
+            // Create New (via Supabase Edge Function)
+            const { data: { session } } = await client.auth.getSession()
+            if (!session) throw new Error('No hay sesión activa')
+
+            const response = await $fetch(`https://hupbcynenviknhwnhwxb.supabase.co/functions/v1/create-user`, {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${session.access_token}`,
+                    'Content-Type': 'application/json'
+                },
                 body: {
                     email: form.email,
                     password: form.password,
