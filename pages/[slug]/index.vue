@@ -75,7 +75,7 @@
               <div>
                 <h3 class="font-semibold text-slate-900 dark:text-white text-lg">{{ stylist.full_name }}</h3>
                 <p class="text-sm text-emerald-400" v-if="stylist.specialties?.name">{{ stylist.specialties.name }}</p>
-                <p class="text-xs text-slate-500" v-if="stylist.branches?.name">­ƒôì {{ stylist.branches.name }}</p>
+                <p class="text-xs text-slate-500" v-if="stylist.branches?.name">📍 {{ stylist.branches.name }}</p>
               </div>
             </div>
             <div v-if="selectedStylist?.id === stylist.id" class="absolute top-3 right-3">
@@ -149,7 +149,7 @@
           </div>
 
           <div v-else-if="dayClosed" class="text-center py-8">
-            <p class="text-slate-500 dark:text-slate-400">­ƒÜ½ Cerrado este d├¡a. Selecciona otra fecha.</p>
+            <p class="text-slate-500 dark:text-slate-400">🚫 Cerrado este día. Selecciona otra fecha.</p>
           </div>
           
           <div v-else class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
@@ -172,7 +172,7 @@
           </div>
 
           <div v-if="timeSlots.length === 0 && !loadingSlots && !dayClosed" class="text-center py-8">
-            <p class="text-slate-500 dark:text-slate-400">No hay horarios configurados para este d├¡a.</p>
+            <p class="text-slate-500 dark:text-slate-400">No hay horarios configurados para este día.</p>
           </div>
         </div>
       </div>
@@ -188,12 +188,12 @@
             <input 
               v-model="clientForm.name" 
               type="text"
-              placeholder="Ej: Mar├¡a L├│pez"
+              placeholder="Ej: María López"
               class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-white/10 rounded-lg px-4 py-3 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Correo electr├│nico</label>
+            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Correo electrónico</label>
             <input 
               v-model="clientForm.email" 
               type="email"
@@ -389,7 +389,7 @@ const fetchData = async () => {
     }
 
     if (tenant.status !== 'active') {
-      error.value = 'Este negocio no est├í disponible en este momento.'
+      error.value = 'Este negocio no está disponible en este momento.'
       return
     }
 

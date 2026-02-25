@@ -343,6 +343,7 @@ const saveMember = async () => {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${session.access_token}`,
+                    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1cGJjeW5lbnZpa25od25od3hiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4NTQwMTQsImV4cCI6MjA4NjQzMDAxNH0.szIwHc18p3QcX6_EERNqrff8tgcag9-XNu1-wpIWk3E',
                     'Content-Type': 'application/json'
                 },
                 body: {
