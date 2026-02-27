@@ -314,6 +314,7 @@ definePageMeta({ layout: false })
 
 const route = useRoute()
 const slug = route.params.slug as string
+const client = useSupabaseClient()
 
 const loading = ref(true)
 const error = ref('')
@@ -374,8 +375,6 @@ const canSubmit = computed(() => {
 // Fetch tenant + stylists + services on load
 const fetchData = async () => {
   try {
-    const client = useSupabaseClient()
-    
     // Get tenant by slug
     const { data: tenant, error: tErr } = await client
       .from('tenants')
@@ -449,13 +448,13 @@ watch(() => selectedDate.value, async (newDate) => {
   timeSlots.value = []
 
   try {
-    const data: any = await $fetch('/api/public/availability', {
-      params: {
-        tenant_slug: slug,
-        stylist_id: selectedStylist.value.id,
-        date: newDate
-      }
+    const { data, error } = await client.rpc('get_public_availability', {
+      p_tenant_slug: slug,
+      p_stylist_id: selectedStylist.value.id,
+      p_date: newDate
     })
+    
+    if (error) throw error
 
     if (data.closed) {
       dayClosed.value = true
@@ -476,19 +475,18 @@ const submitBooking = async () => {
   try {
     const startTime = `${selectedDate.value}T${selectedTime.value}:00`
 
-    const data: any = await $fetch('/api/public/book', {
-      method: 'POST',
-      body: {
-        tenant_slug: slug,
-        stylist_id: selectedStylist.value.id,
-        service_id: selectedService.value.id,
-        start_time: startTime,
-        client_name: clientForm.name,
-        client_email: clientForm.email || null,
-        client_phone: clientForm.phone,
-        notes: clientForm.notes || null
-      }
+    const { data, error } = await client.rpc('create_public_booking', {
+      p_tenant_slug: slug,
+      p_stylist_id: selectedStylist.value.id,
+      p_service_id: selectedService.value.id,
+      p_start_time: startTime,
+      p_client_name: clientForm.name,
+      p_client_email: clientForm.email || null,
+      p_client_phone: clientForm.phone,
+      p_notes: clientForm.notes || null
     })
+
+    if (error) throw error
 
     confirmationMessage.value = data.message || 'Su cita ha sido agendada exitosamente.'
     step.value = 4
