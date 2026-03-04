@@ -395,12 +395,12 @@ const fetchData = async () => {
     tenantName.value = tenant.name
     tenantId.value = tenant.id
 
-    // Get stylists for this tenant
+    // Get stylists for this tenant (excluir admin/superadmin: solo profesionales que atienden)
     const { data: stylistData } = await client
       .from('profiles')
       .select('id, full_name, specialty_id, specialties ( name ), branch_id, branches ( name )')
       .eq('tenant_id', tenant.id)
-      .in('role', ['stylist', 'admin'])
+      .in('role', ['stylist', 'barber'])
 
     if (stylistData) stylists.value = stylistData
 
@@ -473,7 +473,16 @@ const submitBooking = async () => {
   submitError.value = ''
 
   try {
-    const startTime = `${selectedDate.value}T${selectedTime.value}:00`
+    // Construir la hora con el offset local del navegador para que
+    // PostgreSQL la almacene en UTC correcto (sin este offset se guardaba como UTC literal)
+    const [h, m] = selectedTime.value.split(':').map(Number)
+    const localDate = new Date(
+      Number(selectedDate.value.split('-')[0]),
+      Number(selectedDate.value.split('-')[1]) - 1,
+      Number(selectedDate.value.split('-')[2]),
+      h, m, 0
+    )
+    const startTime = localDate.toISOString() // UTC correcto según hora del cliente
 
     const { data, error } = await client.rpc('create_public_booking', {
       p_tenant_slug: slug,
