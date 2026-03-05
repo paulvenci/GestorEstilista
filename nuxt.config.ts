@@ -15,6 +15,12 @@ export default defineNuxtConfig({
     transpile: ['@fullcalendar/vue3', '@fullcalendar/core', '@fullcalendar/daygrid', '@fullcalendar/timegrid', '@fullcalendar/interaction', '@fullcalendar/list']
   },
 
+  nitro: {
+    externals: {
+      external: ['whatsapp-web.js', 'qrcode-terminal']
+    }
+  },
+
   supabase: {
     redirect: false,
   },

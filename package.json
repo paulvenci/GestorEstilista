@@ -1,6 +1,6 @@
 {
   "name": "GestorEstilista",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "type": "module",
   "private": true,
   "scripts": {
@@ -23,10 +23,13 @@
     "@pinia/nuxt": "^0.11.3",
     "@vueuse/core": "^14.2.1",
     "nuxt": "^3.21.1",
+    "qrcode-terminal": "^0.12.0",
     "vue": "^3.5.28",
-    "vue-router": "^4.6.4"
+    "vue-router": "^4.6.4",
+    "whatsapp-web.js": "^1.34.6"
   },
   "devDependencies": {
+    "@types/qrcode-terminal": "^0.12.2",
     "@vite-pwa/nuxt": "^1.1.1"
   }
 }
