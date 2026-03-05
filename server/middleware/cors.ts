@@ -1,8 +1,6 @@
-// Middleware CORS para permitir llamadas desde GitHub Pages al servidor Railway
 export default defineEventHandler((event) => {
-    const origin = getRequestHeader(event, 'origin') || ''
+    const origin = event.node.req.headers.origin || ''
 
-    // Permitir GitHub Pages y localhost
     const allowed = [
         'https://paulvenci.github.io',
         'http://localhost:3000',
@@ -10,16 +8,13 @@ export default defineEventHandler((event) => {
     ]
 
     if (allowed.includes(origin)) {
-        setResponseHeaders(event, {
-            'Access-Control-Allow-Origin': origin,
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-            'Access-Control-Max-Age': '86400'
-        })
+        event.node.res.setHeader('Access-Control-Allow-Origin', origin)
+        event.node.res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        event.node.res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+        event.node.res.setHeader('Access-Control-Max-Age', '86400')
     }
 
-    // Responder a preflight OPTIONS
-    if (getMethod(event) === 'OPTIONS') {
+    if (event.node.req.method === 'OPTIONS') {
         event.node.res.statusCode = 204
         event.node.res.end()
         return
