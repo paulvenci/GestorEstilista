@@ -1,8 +1,11 @@
 [phases.setup]
-nixPkgs = ["nodejs", "google-chrome"]
+nixPkgs = ["nodejs", "chromium"]
 
 [phases.build]
 cmds = ["npm run build"]
 
 [start]
 cmd = "node .output/server/index.mjs"
+
+[variables]
+PUPPETEER_EXECUTABLE_PATH = "/nix/var/nix/profiles/default/bin/chromium"
