@@ -5,7 +5,4 @@ nixPkgs = ["nodejs", "chromium"]
 cmds = ["npm run build"]
 
 [start]
-cmd = "node .output/server/index.mjs"
-
-[variables]
-PUPPETEER_EXECUTABLE_PATH = "/nix/var/nix/profiles/default/bin/chromium"
+cmd = "export PUPPETEER_EXECUTABLE_PATH=$(which chromium 2>/dev/null || which chromium-browser 2>/dev/null || echo '/usr/bin/chromium') && echo \"Chromium encontrado en: $PUPPETEER_EXECUTABLE_PATH\" && node .output/server/index.mjs"
