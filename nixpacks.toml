@@ -1,8 +1,32 @@
 [phases.setup]
-nixPkgs = ["nodejs", "chromium"]
+# Librerías de sistema requeridas por Chromium/Puppeteer para funcionar
+nixPkgs = [
+  "nodejs",
+  "glib",
+  "nss",
+  "nspr",
+  "at-spi2-atk",
+  "cups",
+  "dbus",
+  "expat",
+  "libdrm",
+  "mesa",
+  "pango",
+  "cairo",
+  "alsa-lib",
+  "xorg.libX11",
+  "xorg.libXcomposite",
+  "xorg.libXdamage",
+  "xorg.libXext",
+  "xorg.libXfixes",
+  "xorg.libXrandr",
+  "xorg.libxcb",
+  "libxkbcommon",
+  "gtk3"
+]
 
 [phases.build]
 cmds = ["npm run build"]
 
 [start]
-cmd = "export PUPPETEER_EXECUTABLE_PATH=$(which chromium 2>/dev/null || which chromium-browser 2>/dev/null || echo '/usr/bin/chromium') && echo \"Chromium encontrado en: $PUPPETEER_EXECUTABLE_PATH\" && node .output/server/index.mjs"
+cmd = "export LD_LIBRARY_PATH=$(echo /nix/store/*/lib | tr ' ' ':'):$LD_LIBRARY_PATH && node .output/server/index.mjs"
