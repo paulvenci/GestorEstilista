@@ -1,21 +1,42 @@
 import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
+import { execSync } from 'node:child_process'
 
-// Buscar el ejecutable de Chromium en las rutas típicas de Nix/Railway/Docker
-function findChromiumPath(): string {
+// Buscar Chromium en todas las ubicaciones posibles
+function findChromiumPath(): string | undefined {
+    // 1. Variable de entorno explícita
+    if (process.env.PUPPETEER_EXECUTABLE_PATH && existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
+        return process.env.PUPPETEER_EXECUTABLE_PATH
+    }
+
+    // 2. Buscar con 'which' en el PATH del sistema
+    try {
+        const found = execSync('which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null', { encoding: 'utf-8' }).trim()
+        if (found && existsSync(found)) return found
+    } catch { }
+
+    // 3. Buscar en carpeta cache de Puppeteer (descarga automática de npm install)
+    try {
+        const esmRequire = createRequire(process.cwd() + '/package.json')
+        const puppeteer = esmRequire('puppeteer')
+        const browserPath = puppeteer.executablePath?.()
+        if (browserPath && existsSync(browserPath)) return browserPath
+    } catch { }
+
+    // 4. Rutas manuales comunes
     const paths = [
-        process.env.PUPPETEER_EXECUTABLE_PATH,
         '/nix/var/nix/profiles/default/bin/chromium',
         '/root/.nix-profile/bin/chromium',
         '/usr/bin/chromium',
         '/usr/bin/chromium-browser',
         '/usr/bin/google-chrome',
-        '/usr/bin/google-chrome-stable',
     ]
     for (const p of paths) {
-        if (p && existsSync(p)) return p
+        if (existsSync(p)) return p
     }
-    return paths[1]! // Fallback a la ruta Nix por defecto
+
+    // 5. undefined = dejar que puppeteer use su propio Chromium descargado
+    return undefined
 }
 
 export default defineNitroPlugin(async (nitroApp) => {
@@ -28,24 +49,30 @@ export default defineNitroPlugin(async (nitroApp) => {
             const qrcode = esmRequire('qrcode-terminal')
 
             const chromePath = findChromiumPath()
-            console.log('--- Usando navegador en:', chromePath, '---')
+            console.log('--- Chromium path:', chromePath || 'AUTO (puppeteer default)', '---')
+
+            const puppeteerOptions: any = {
+                headless: true,
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--no-zygote',
+                    '--single-process'
+                ]
+            }
+
+            // Solo establecer executablePath si encontramos uno explícito
+            if (chromePath) {
+                puppeteerOptions.executablePath = chromePath
+            }
 
             const client = new Client({
                 authStrategy: new LocalAuth({
                     clientId: 'default',
                     dataPath: './.wwebjs_auth'
                 }),
-                puppeteer: {
-                    headless: true,
-                    args: [
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--disable-dev-shm-usage',
-                        '--no-zygote',
-                        '--single-process'
-                    ],
-                    executablePath: chromePath
-                }
+                puppeteer: puppeteerOptions
             })
 
             client.on('qr', (qr: string) => {
