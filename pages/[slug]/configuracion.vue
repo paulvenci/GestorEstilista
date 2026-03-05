@@ -236,8 +236,12 @@ const checkWaStatus = async () => {
   waLoading.value = true
   try {
     const config = useRuntimeConfig()
-    const base = config.app.baseURL || '/'
-    const res = await $fetch(`${base}api/whatsapp/status`)
+    const waBaseUrl = config.public.whatsappApiUrl as string
+    if (!waBaseUrl) {
+      waStatus.value = { connected: false, qr: null, hasClient: false, message: 'URL de WhatsApp API no configurada' }
+      return
+    }
+    const res = await $fetch<any>(`${waBaseUrl}/api/whatsapp/status`)
     waStatus.value = res
     
     // Polling: si tiene QR y no está conectado, verificar cada 5s
