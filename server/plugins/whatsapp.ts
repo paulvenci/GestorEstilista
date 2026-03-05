@@ -1,17 +1,34 @@
 import { createRequire } from 'node:module'
+import { existsSync } from 'node:fs'
+
+// Buscar el ejecutable de Chromium en las rutas típicas de Nix/Railway/Docker
+function findChromiumPath(): string {
+    const paths = [
+        process.env.PUPPETEER_EXECUTABLE_PATH,
+        '/nix/var/nix/profiles/default/bin/chromium',
+        '/root/.nix-profile/bin/chromium',
+        '/usr/bin/chromium',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+    ]
+    for (const p of paths) {
+        if (p && existsSync(p)) return p
+    }
+    return paths[1]! // Fallback a la ruta Nix por defecto
+}
 
 export default defineNitroPlugin(async (nitroApp) => {
-    // Solo inicializar si estamos en producción y la flag está activa
     if (process.env.ENABLE_WHATSAPP === 'true') {
         console.log('--- Iniciando WhatsApp Client ---')
 
         try {
-            // Usar createRequire para cargar módulos CommonJS desde un contexto ESM
-            // Esto evita que Nitro intente empaquetar whatsapp-web.js durante el build
-            // Resolver desde la raíz del proyecto donde están los node_modules
             const esmRequire = createRequire(process.cwd() + '/package.json')
             const { Client, LocalAuth } = esmRequire('whatsapp-web.js')
             const qrcode = esmRequire('qrcode-terminal')
+
+            const chromePath = findChromiumPath()
+            console.log('--- Usando navegador en:', chromePath, '---')
 
             const client = new Client({
                 authStrategy: new LocalAuth({
@@ -27,7 +44,7 @@ export default defineNitroPlugin(async (nitroApp) => {
                         '--no-zygote',
                         '--single-process'
                     ],
-                    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/google-chrome'
+                    executablePath: chromePath
                 }
             })
 
