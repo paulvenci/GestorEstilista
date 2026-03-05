@@ -30,7 +30,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     public: {
       appVersion: process.env.npm_package_version || '0.1.0',
-      whatsappApiUrl: process.env.WHATSAPP_API_URL || 'https://gestorestilista-production.up.railway.app'
+      whatsappApiUrl: process.env.WHATSAPP_API_URL || 'https://gestorestilista-production.up.railway.app/GestorEstilista'
     }
   },
   experimental: {
