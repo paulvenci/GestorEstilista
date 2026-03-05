@@ -1,14 +1,16 @@
+import { createRequire } from 'node:module'
+
 export default defineNitroPlugin(async (nitroApp) => {
     // Solo inicializar si estamos en producción y la flag está activa
-    if (process.env.NODE_ENV === 'production' || process.env.ENABLE_WHATSAPP === 'true') {
-        console.log('--- Iniciando WhatsApp Client (Hack mode) ---')
+    if (process.env.ENABLE_WHATSAPP === 'true') {
+        console.log('--- Iniciando WhatsApp Client ---')
 
         try {
-            // Usar eval require para que Nitro no intente analizar el paquete durante el build
-            // Esto solo funciona si node_modules está presente en el servidor de destino
-            const pkg = eval('require("whatsapp-web.js")')
-            const { Client, LocalAuth } = pkg
-            const qrcode = eval('require("qrcode-terminal")')
+            // Usar createRequire para cargar módulos CommonJS desde un contexto ESM
+            // Esto evita que Nitro intente empaquetar whatsapp-web.js durante el build
+            const esmRequire = createRequire(import.meta.url)
+            const { Client, LocalAuth } = esmRequire('whatsapp-web.js')
+            const qrcode = esmRequire('qrcode-terminal')
 
             const client = new Client({
                 authStrategy: new LocalAuth({
@@ -28,7 +30,7 @@ export default defineNitroPlugin(async (nitroApp) => {
                 }
             })
 
-            client.on('qr', (qr) => {
+            client.on('qr', (qr: string) => {
                 console.log('--- NUEVO CÓDIGO QR RECIBIDO ---')
                 qrcode.generate(qr, { small: true })
                 globalThis.lastWhatsappQR = qr
@@ -40,7 +42,15 @@ export default defineNitroPlugin(async (nitroApp) => {
                 globalThis.lastWhatsappQR = null
             })
 
-            client.initialize().catch(err => {
+            client.on('authenticated', () => {
+                console.log('--- WhatsApp Autenticado correctamente ---')
+            })
+
+            client.on('auth_failure', (msg: string) => {
+                console.error('--- Error de autenticación WhatsApp ---', msg)
+            })
+
+            client.initialize().catch((err: any) => {
                 console.error('--- Fallo al inicializar WhatsApp ---', err)
             })
 
