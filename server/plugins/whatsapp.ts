@@ -8,7 +8,8 @@ export default defineNitroPlugin(async (nitroApp) => {
         try {
             // Usar createRequire para cargar módulos CommonJS desde un contexto ESM
             // Esto evita que Nitro intente empaquetar whatsapp-web.js durante el build
-            const esmRequire = createRequire(import.meta.url)
+            // Resolver desde la raíz del proyecto donde están los node_modules
+            const esmRequire = createRequire(process.cwd() + '/package.json')
             const { Client, LocalAuth } = esmRequire('whatsapp-web.js')
             const qrcode = esmRequire('qrcode-terminal')
 
