@@ -77,6 +77,50 @@
         </form>
       </UCard>
 
+      <!-- WhatsApp Connection Status -->
+      <UCard v-if="isAdmin" class="mt-6">
+        <template #header>
+            <h2 class="font-semibold text-lg flex items-center gap-2">
+                <svg class="w-5 h-5 text-green-500" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.611.611l4.458-1.495A11.96 11.96 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.344 0-4.52-.81-6.238-2.163l-.435-.346-3.042 1.02 1.02-3.042-.346-.435A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+                Conexión WhatsApp
+            </h2>
+        </template>
+
+        <div class="space-y-4">
+          <!-- Estado -->
+          <div class="flex items-center gap-3 p-4 rounded-xl" :class="waStatus.connected ? 'bg-green-50 dark:bg-green-500/10 border border-green-200 dark:border-green-500/20' : 'bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20'">
+            <div class="w-3 h-3 rounded-full" :class="waStatus.connected ? 'bg-green-500 animate-pulse' : 'bg-amber-500'"></div>
+            <div>
+              <p class="font-medium" :class="waStatus.connected ? 'text-green-700 dark:text-green-400' : 'text-amber-700 dark:text-amber-400'">
+                {{ waStatus.connected ? '✅ Conectado' : waStatus.qr ? '📱 Escanea el QR' : '⏳ ' + waStatus.message }}
+              </p>
+              <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ waStatus.message }}</p>
+            </div>
+            <UButton @click="checkWaStatus" :loading="waLoading" variant="soft" color="gray" size="xs" icon="i-heroicons-arrow-path" class="ml-auto">
+              Verificar
+            </UButton>
+          </div>
+
+          <!-- QR Code -->
+          <div v-if="waStatus.qr && !waStatus.connected" class="flex flex-col items-center gap-4 py-4">
+            <p class="text-sm text-gray-600 dark:text-gray-400">Abre WhatsApp → <strong>Dispositivos vinculados</strong> → <strong>Vincular dispositivo</strong></p>
+            <div class="bg-white p-4 rounded-2xl shadow-lg border border-gray-200">
+              <img :src="qrImageUrl" alt="QR WhatsApp" class="w-64 h-64" />
+            </div>
+            <p class="text-xs text-gray-400">El QR se actualiza automáticamente cada 30 segundos</p>
+          </div>
+
+          <!-- Conectado -->
+          <div v-if="waStatus.connected" class="text-center py-4">
+            <div class="w-16 h-16 mx-auto mb-3 rounded-full bg-green-500/10 flex items-center justify-center">
+              <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+            </div>
+            <p class="font-semibold text-green-600 dark:text-green-400">WhatsApp vinculado correctamente</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Los mensajes se enviarán automáticamente desde este número</p>
+          </div>
+        </div>
+      </UCard>
+
       <!-- Booking Settings Section -->
       <UCard class="mt-6">
         <template #header>
@@ -178,6 +222,41 @@ const bookingSettings = ref<any>({
     confirmation_message: 'Su cita ha sido agendada y está pendiente de confirmación.'
 })
 
+// --- WhatsApp Connection ---
+const waStatus = ref<any>({ connected: false, qr: null, hasClient: false, message: 'Verificando...' })
+const waLoading = ref(false)
+let waPollingInterval: any = null
+
+const qrImageUrl = computed(() => {
+  if (!waStatus.value.qr) return ''
+  return `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(waStatus.value.qr)}`
+})
+
+const checkWaStatus = async () => {
+  waLoading.value = true
+  try {
+    const config = useRuntimeConfig()
+    const base = config.app.baseURL || '/'
+    const res = await $fetch(`${base}api/whatsapp/status`)
+    waStatus.value = res
+    
+    // Polling: si tiene QR y no está conectado, verificar cada 5s
+    if (res.qr && !res.connected) {
+      if (!waPollingInterval) {
+        waPollingInterval = setInterval(checkWaStatus, 5000)
+      }
+    } else {
+      if (waPollingInterval) {
+        clearInterval(waPollingInterval)
+        waPollingInterval = null
+      }
+    }
+  } catch (e: any) {
+    waStatus.value = { connected: false, qr: null, hasClient: false, message: 'No se pudo conectar al servicio' }
+  } finally {
+    waLoading.value = false
+  }
+}
 const workDays = [
     { key: 'work_monday', label: 'Lun' },
     { key: 'work_tuesday', label: 'Mar' },
@@ -312,6 +391,7 @@ const testWhatsapp = async () => {
 
 onMounted(() => {
     fetchSettings()
+    checkWaStatus()
 })
 
 const saveBookingSettings = async () => {
