@@ -1,18 +1,29 @@
 export default defineEventHandler(async (event) => {
-    const qr = globalThis.lastWhatsappQR || null
-    const ready = globalThis.whatsappReady || false
-    const clientExists = !!globalThis.whatsappClient
+    const tenantId = getQuery(event).tenant_id as string
+
+    if (!tenantId) {
+        return { connected: false, qr: null, hasClient: false, message: 'Falta tenant_id' }
+    }
+
+    const state = globalThis.whatsappClients?.get(tenantId)
+
+    if (!state) {
+        return {
+            connected: false,
+            qr: null,
+            hasClient: false,
+            message: 'WhatsApp no inicializado para este negocio'
+        }
+    }
 
     return {
-        connected: ready,
-        qr: qr,
-        hasClient: clientExists,
-        message: ready
+        connected: state.ready,
+        qr: state.qr,
+        hasClient: true,
+        message: state.ready
             ? 'WhatsApp conectado y listo'
-            : qr
+            : state.qr
                 ? 'Escanea el código QR con tu teléfono'
-                : clientExists
-                    ? 'Esperando código QR...'
-                    : 'Cliente WhatsApp no inicializado'
+                : 'Esperando código QR...'
     }
 })

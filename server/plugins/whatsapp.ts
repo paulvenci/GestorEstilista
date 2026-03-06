@@ -2,20 +2,20 @@ import { createRequire } from 'node:module'
 import { existsSync } from 'node:fs'
 import { execSync } from 'node:child_process'
 
+// Límite de tenants simultáneos (0.5GB RAM => ~3 sesiones)
+const MAX_TENANTS = 3
+
 // Buscar Chromium en todas las ubicaciones posibles
 function findChromiumPath(): string | undefined {
-    // 1. Variable de entorno explícita
     if (process.env.PUPPETEER_EXECUTABLE_PATH && existsSync(process.env.PUPPETEER_EXECUTABLE_PATH)) {
         return process.env.PUPPETEER_EXECUTABLE_PATH
     }
 
-    // 2. Buscar con 'which' en el PATH del sistema
     try {
         const found = execSync('which chromium 2>/dev/null || which chromium-browser 2>/dev/null || which google-chrome 2>/dev/null', { encoding: 'utf-8' }).trim()
         if (found && existsSync(found)) return found
     } catch { }
 
-    // 3. Buscar en carpeta cache de Puppeteer (descarga automática de npm install)
     try {
         const esmRequire = createRequire(process.cwd() + '/package.json')
         const puppeteer = esmRequire('puppeteer')
@@ -23,7 +23,6 @@ function findChromiumPath(): string | undefined {
         if (browserPath && existsSync(browserPath)) return browserPath
     } catch { }
 
-    // 4. Rutas manuales comunes
     const paths = [
         '/nix/var/nix/profiles/default/bin/chromium',
         '/root/.nix-profile/bin/chromium',
@@ -35,73 +34,153 @@ function findChromiumPath(): string | undefined {
         if (existsSync(p)) return p
     }
 
-    // 5. undefined = dejar que puppeteer use su propio Chromium descargado
     return undefined
 }
 
-export default defineNitroPlugin(async (nitroApp) => {
-    if (process.env.ENABLE_WHATSAPP === 'true') {
-        console.log('--- Iniciando WhatsApp Client ---')
+// Cachear módulos y chromePath para no buscarlos cada vez
+let _modules: { Client: any, LocalAuth: any, qrcode: any } | null = null
+let _chromePath: string | undefined
 
-        try {
-            const esmRequire = createRequire(process.cwd() + '/package.json')
-            const { Client, LocalAuth } = esmRequire('whatsapp-web.js')
-            const qrcode = esmRequire('qrcode-terminal')
+function getModules() {
+    if (!_modules) {
+        const esmRequire = createRequire(process.cwd() + '/package.json')
+        const { Client, LocalAuth } = esmRequire('whatsapp-web.js')
+        const qrcode = esmRequire('qrcode-terminal')
+        _modules = { Client, LocalAuth, qrcode }
+    }
+    return _modules
+}
 
-            const chromePath = findChromiumPath()
-            console.log('--- Chromium path:', chromePath || 'AUTO (puppeteer default)', '---')
+function getChromePath() {
+    if (_chromePath === undefined) {
+        _chromePath = findChromiumPath() || ''
+    }
+    return _chromePath || undefined
+}
 
-            const puppeteerOptions: any = {
-                headless: true,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--no-zygote',
-                    '--single-process'
-                ]
-            }
+/**
+ * Inicializa un cliente de WhatsApp para un tenant específico.
+ * Cada tenant tiene su propia sesión separada.
+ */
+export function initWhatsappForTenant(tenantId: string): { success: boolean, message: string } {
+    if (process.env.ENABLE_WHATSAPP !== 'true') {
+        return { success: false, message: 'WhatsApp no está habilitado en este servidor (ENABLE_WHATSAPP != true)' }
+    }
 
-            // Solo establecer executablePath si encontramos uno explícito
-            if (chromePath) {
-                puppeteerOptions.executablePath = chromePath
-            }
+    // Verificar si ya tiene sesión activa
+    const existing = globalThis.whatsappClients.get(tenantId)
+    if (existing) {
+        return { success: true, message: existing.ready ? 'Ya conectado' : 'Ya inicializado, esperando QR...' }
+    }
 
-            const client = new Client({
-                authStrategy: new LocalAuth({
-                    clientId: 'default',
-                    dataPath: './.wwebjs_auth'
-                }),
-                puppeteer: puppeteerOptions
-            })
-
-            client.on('qr', (qr: string) => {
-                console.log('--- NUEVO CÓDIGO QR RECIBIDO ---')
-                qrcode.generate(qr, { small: true })
-                globalThis.lastWhatsappQR = qr
-            })
-
-            client.on('ready', () => {
-                console.log('--- WhatsApp Client está LISTO! ---')
-                globalThis.whatsappReady = true
-                globalThis.lastWhatsappQR = null
-            })
-
-            client.on('authenticated', () => {
-                console.log('--- WhatsApp Autenticado correctamente ---')
-            })
-
-            client.on('auth_failure', (msg: string) => {
-                console.error('--- Error de autenticación WhatsApp ---', msg)
-            })
-
-            client.initialize().catch((err: any) => {
-                console.error('--- Fallo al inicializar WhatsApp ---', err)
-            })
-
-            globalThis.whatsappClient = client
-        } catch (err) {
-            console.error('--- Error al cargar módulos de WhatsApp ---', err)
+    // Verificar límite de tenants
+    const activeCount = globalThis.whatsappClients.size
+    if (activeCount >= MAX_TENANTS) {
+        return {
+            success: false,
+            message: `Límite alcanzado: máximo ${MAX_TENANTS} sesiones WhatsApp simultáneas. Desconecta otra peluquería primero.`
         }
     }
+
+    try {
+        const { Client, LocalAuth, qrcode } = getModules()
+        const chromePath = getChromePath()
+
+        console.log(`--- Iniciando WhatsApp para tenant ${tenantId} ---`)
+        console.log('--- Chromium path:', chromePath || 'AUTO', '---')
+
+        const puppeteerOptions: any = {
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--no-zygote',
+                '--single-process'
+            ]
+        }
+
+        if (chromePath) {
+            puppeteerOptions.executablePath = chromePath
+        }
+
+        const client = new Client({
+            authStrategy: new LocalAuth({
+                clientId: `tenant_${tenantId}`,
+                dataPath: './.wwebjs_auth'
+            }),
+            puppeteer: puppeteerOptions
+        })
+
+        // Estado inicial
+        const state = { client, ready: false, qr: null as string | null }
+        globalThis.whatsappClients.set(tenantId, state)
+
+        client.on('qr', (qr: string) => {
+            console.log(`--- QR recibido para tenant ${tenantId} ---`)
+            qrcode.generate(qr, { small: true })
+            const s = globalThis.whatsappClients.get(tenantId)
+            if (s) s.qr = qr
+        })
+
+        client.on('ready', () => {
+            console.log(`--- WhatsApp LISTO para tenant ${tenantId} ---`)
+            const s = globalThis.whatsappClients.get(tenantId)
+            if (s) { s.ready = true; s.qr = null }
+        })
+
+        client.on('authenticated', () => {
+            console.log(`--- WhatsApp autenticado para tenant ${tenantId} ---`)
+        })
+
+        client.on('auth_failure', (msg: string) => {
+            console.error(`--- Auth failure para tenant ${tenantId} ---`, msg)
+        })
+
+        client.on('disconnected', (reason: string) => {
+            console.log(`--- WhatsApp desconectado para tenant ${tenantId}: ${reason} ---`)
+            globalThis.whatsappClients.delete(tenantId)
+        })
+
+        client.initialize().catch((err: any) => {
+            console.error(`--- Fallo al inicializar WhatsApp para tenant ${tenantId} ---`, err)
+            globalThis.whatsappClients.delete(tenantId)
+        })
+
+        return { success: true, message: 'Inicializando WhatsApp... Espera el código QR.' }
+    } catch (err: any) {
+        console.error(`--- Error cargando módulos WhatsApp ---`, err)
+        return { success: false, message: 'Error al cargar módulos: ' + err.message }
+    }
+}
+
+/**
+ * Desconecta el cliente de WhatsApp de un tenant.
+ */
+export async function disconnectWhatsappForTenant(tenantId: string): Promise<{ success: boolean, message: string }> {
+    const state = globalThis.whatsappClients.get(tenantId)
+    if (!state) {
+        return { success: false, message: 'No hay sesión de WhatsApp activa para este negocio' }
+    }
+
+    try {
+        await state.client.destroy()
+    } catch (err: any) {
+        console.error(`--- Error al destruir cliente de tenant ${tenantId} ---`, err)
+    }
+
+    globalThis.whatsappClients.delete(tenantId)
+    console.log(`--- WhatsApp desconectado para tenant ${tenantId} ---`)
+    return { success: true, message: 'WhatsApp desconectado correctamente' }
+}
+
+// Plugin de inicialización: solo prepara el Map global
+export default defineNitroPlugin(async (_nitroApp) => {
+    // Inicializar el Map global de clientes
+    if (!globalThis.whatsappClients) {
+        globalThis.whatsappClients = new Map()
+    }
+    globalThis.MAX_WHATSAPP_TENANTS = MAX_TENANTS
+
+    console.log(`--- WhatsApp Multi-Tenant Plugin cargado (máx: ${MAX_TENANTS} sesiones) ---`)
 })

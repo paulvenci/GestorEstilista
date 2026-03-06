@@ -32,14 +32,6 @@
                 <UFormGroup label="Anticipación (Horas)" help="Cuántas horas antes de la cita enviar el mensaje">
                     <UInput v-model="settings.reminder_hours_before" type="number" min="1" max="72" placeholder="24" icon="i-heroicons-clock" />
                 </UFormGroup>
-
-                <UFormGroup label="WhatsApp Phone Number ID" help="ID del número de teléfono en Meta for Developers">
-                    <UInput v-model="settings.whatsapp_phone_number_id" icon="i-heroicons-hashtag" placeholder="Ej: 100609346..." />
-                </UFormGroup>
-
-                <UFormGroup label="WhatsApp Access Token" help="Token de acceso (Permanente o de Sistema)">
-                    <UInput v-model="settings.whatsapp_access_token" type="password" icon="i-heroicons-key" placeholder="Ej: EAAG..." />
-                </UFormGroup>
             </div>
             
             <UDivider />
@@ -96,9 +88,17 @@
               </p>
               <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{{ waStatus.message }}</p>
             </div>
-            <UButton @click="checkWaStatus" :loading="waLoading" variant="soft" color="gray" size="xs" icon="i-heroicons-arrow-path" class="ml-auto">
-              Verificar
-            </UButton>
+            <div class="flex gap-2 ml-auto">
+              <UButton @click="checkWaStatus" :loading="waLoading" variant="soft" color="gray" size="xs" icon="i-heroicons-arrow-path">
+                Verificar
+              </UButton>
+              <UButton v-if="!waStatus.connected && !waStatus.hasClient" @click="initWa" :loading="waLoading" color="green" size="xs" icon="i-heroicons-play">
+                Conectar
+              </UButton>
+              <UButton v-if="waStatus.connected || waStatus.hasClient" @click="disconnectWa" :loading="waLoading" variant="soft" color="red" size="xs" icon="i-heroicons-power">
+                Desconectar
+              </UButton>
+            </div>
           </div>
 
           <!-- QR Code -->
@@ -195,12 +195,11 @@ const userRole = ref('')
 const isAdmin = computed(() => ['admin', 'superadmin'].includes(userRole.value))
 const saving = ref(false)
 const testing = ref(false)
+const tenantId = ref('')
 const settings = ref({
     whatsapp_template: '',
     enable_reminders: false,
-    reminder_hours_before: 24,
-    whatsapp_phone_number_id: '',
-    whatsapp_access_token: ''
+    reminder_hours_before: 24
 })
 
 // --- Booking Settings ---
@@ -241,7 +240,9 @@ const checkWaStatus = async () => {
       waStatus.value = { connected: false, qr: null, hasClient: false, message: 'URL de WhatsApp API no configurada' }
       return
     }
-    const res = await $fetch<any>(`${waBaseUrl}/api/whatsapp/status`)
+    const res = await $fetch<any>(`${waBaseUrl}/api/whatsapp/status`, {
+      params: { tenant_id: tenantId.value }
+    })
     waStatus.value = res
     
     // Polling: si tiene QR y no está conectado, verificar cada 5s
@@ -257,6 +258,43 @@ const checkWaStatus = async () => {
     }
   } catch (e: any) {
     waStatus.value = { connected: false, qr: null, hasClient: false, message: 'No se pudo conectar al servicio' }
+  } finally {
+    waLoading.value = false
+  }
+}
+
+const initWa = async () => {
+  waLoading.value = true
+  try {
+    const config = useRuntimeConfig()
+    const waBaseUrl = config.public.whatsappApiUrl as string
+    await $fetch<any>(`${waBaseUrl}/api/whatsapp/init`, {
+      method: 'POST',
+      body: { tenant_id: tenantId.value }
+    })
+    // Esperar un poco y luego verificar estado (para obtener QR)
+    setTimeout(() => checkWaStatus(), 3000)
+  } catch (e: any) {
+    const msg = e?.data?.statusMessage || e.message || 'Error al iniciar WhatsApp'
+    useToast().add({ title: msg, color: 'red', icon: 'i-heroicons-x-circle' })
+    waLoading.value = false
+  }
+}
+
+const disconnectWa = async () => {
+  waLoading.value = true
+  try {
+    const config = useRuntimeConfig()
+    const waBaseUrl = config.public.whatsappApiUrl as string
+    const res = await $fetch<any>(`${waBaseUrl}/api/whatsapp/disconnect`, {
+      method: 'POST',
+      body: { tenant_id: tenantId.value }
+    })
+    waStatus.value = { connected: false, qr: null, hasClient: false, message: res.message || 'Desconectado' }
+    if (waPollingInterval) { clearInterval(waPollingInterval); waPollingInterval = null }
+    useToast().add({ title: 'WhatsApp desconectado', color: 'green' })
+  } catch (e: any) {
+    useToast().add({ title: 'Error al desconectar', description: e.message, color: 'red' })
   } finally {
     waLoading.value = false
   }
@@ -319,6 +357,7 @@ const fetchSettings = async () => {
         // we might rely on the profile -> tenant relation or just try fetching the single tenant row enabled by RLS
         // The policy "Users can view their own tenant" should allow this:
         const { data, error } = await client.from('tenants').select('id, slug, settings').single()
+        if (data?.id) tenantId.value = data.id
         
         if (error) {
             console.error('Error fetching settings:', error)
@@ -366,28 +405,35 @@ const saveSettings = async () => {
 }
 
 const testWhatsapp = async () => {
-    if (!settings.value.whatsapp_phone_number_id || !settings.value.whatsapp_access_token) {
-        return useToast().add({ title: 'Faltan credenciales', color: 'red' })
+    if (!waStatus.value.connected) {
+        return useToast().add({ 
+            title: 'WhatsApp no vinculado', 
+            description: 'Escanea el código QR primero para poder enviar mensajes.',
+            color: 'amber',
+            icon: 'i-heroicons-exclamation-triangle'
+        })
     }
 
-    const phone = prompt('Ingresa un número de celular para la prueba (con código de país, ej: 56912345678):')
+    const phone = prompt('Ingresa el número de destino (con código de país, ej: 56912345678):')
     if (!phone) return
 
     testing.value = true
     try {
-        const { data, error } = await client.functions.invoke('send-reminders', {
-            body: {
-                action: 'test',
-                to: phone,
-                test_settings: settings.value
-            }
+        const config = useRuntimeConfig()
+        const waBaseUrl = config.public.whatsappApiUrl as string
+        const message = previewMessage.value
+
+        const res = await $fetch<any>(`${waBaseUrl}/api/whatsapp/send`, {
+            params: { phone, message, tenant_id: tenantId.value }
         })
 
-        if (error) throw error
-        
-        useToast().add({ title: 'Mensaje enviado', description: 'Revisa tu WhatsApp', color: 'green' })
+        if (res.success) {
+            useToast().add({ title: 'Mensaje de prueba enviado', description: 'Revisa tu WhatsApp', color: 'green' })
+        } else {
+            throw new Error(res.message || 'Error desconocido')
+        }
     } catch (e: any) {
-        useToast().add({ title: 'Error en la prueba', description: e.message, color: 'red' })
+        useToast().add({ title: 'Error al enviar', description: e.message, color: 'red', icon: 'i-heroicons-x-circle' })
     } finally {
         testing.value = false
     }

@@ -1,13 +1,21 @@
 export default defineEventHandler(async (event) => {
-    const phone = getQuery(event).phone as string
-    const message = getQuery(event).message as string
+    const query = getQuery(event)
+    const phone = query.phone as string
+    const message = query.message as string
+    const tenantId = query.tenant_id as string
 
     if (!phone || !message) {
         throw createError({ statusCode: 400, statusMessage: 'Se requiere phone y message' })
     }
 
-    if (!globalThis.whatsappReady || !globalThis.whatsappClient) {
-        throw createError({ statusCode: 503, statusMessage: 'WhatsApp no está conectado' })
+    if (!tenantId) {
+        throw createError({ statusCode: 400, statusMessage: 'Se requiere tenant_id' })
+    }
+
+    const state = globalThis.whatsappClients?.get(tenantId)
+
+    if (!state || !state.ready) {
+        throw createError({ statusCode: 503, statusMessage: 'WhatsApp no está conectado para este negocio' })
     }
 
     try {
@@ -19,7 +27,7 @@ export default defineEventHandler(async (event) => {
         }
 
         const chatId = cleanPhone + '@c.us'
-        await globalThis.whatsappClient.sendMessage(chatId, message)
+        await state.client.sendMessage(chatId, message)
 
         return { success: true, message: 'Mensaje enviado correctamente' }
     } catch (err: any) {

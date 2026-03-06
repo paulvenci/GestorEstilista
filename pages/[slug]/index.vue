@@ -320,6 +320,7 @@ const loading = ref(true)
 const error = ref('')
 const tenantName = ref('')
 const tenantId = ref('')
+const tenantSettings = ref<any>({})
 const step = ref(0)
 const stepLabels = ['Profesional', 'Servicio', 'Fecha y Hora', 'Tus Datos']
 
@@ -378,7 +379,7 @@ const fetchData = async () => {
     // Get tenant by slug
     const { data: tenant, error: tErr } = await client
       .from('tenants')
-      .select('id, name, status')
+      .select('id, name, status, settings')
       .eq('slug', slug)
       .single()
 
@@ -394,6 +395,7 @@ const fetchData = async () => {
 
     tenantName.value = tenant.name
     tenantId.value = tenant.id
+    tenantSettings.value = tenant.settings || {}
 
     // Get stylists for this tenant (excluir admin/superadmin: solo profesionales que atienden)
     const { data: stylistData } = await client
@@ -473,8 +475,7 @@ const submitBooking = async () => {
   submitError.value = ''
 
   try {
-    // Construir la hora con el offset local del navegador para que
-    // PostgreSQL la almacene en UTC correcto (sin este offset se guardaba como UTC literal)
+    // Construir la hora con el offset local del navegador
     const [h, m] = selectedTime.value.split(':').map(Number)
     const localDate = new Date(
       Number(selectedDate.value.split('-')[0]),
@@ -482,9 +483,9 @@ const submitBooking = async () => {
       Number(selectedDate.value.split('-')[2]),
       h, m, 0
     )
-    const startTime = localDate.toISOString() // UTC correcto según hora del cliente
+    const startTime = localDate.toISOString() 
 
-    const { data, error } = await client.rpc('create_public_booking', {
+    const { data: bookingResponse, error } = await client.rpc('create_public_booking', {
       p_tenant_slug: slug,
       p_stylist_id: selectedStylist.value.id,
       p_service_id: selectedService.value.id,
@@ -497,7 +498,38 @@ const submitBooking = async () => {
 
     if (error) throw error
 
-    confirmationMessage.value = data.message || 'Su cita ha sido agendada exitosamente.'
+    // --- ENVÍO DE WHATSAPP ---
+    try {
+      const config = useRuntimeConfig()
+      const waBaseUrl = config.public.whatsappApiUrl as string
+      
+      const settings = tenantSettings.value || {}
+      let message = settings.whatsapp_template || "Hola {cliente}, recordamos tu cita en GestorEstilista el {fecha} a las {hora} con {estilista}."
+      
+      const fechaLegible = formatDate(selectedDate.value)
+      
+      message = message
+        .replace(/{cliente}/g, clientForm.name)
+        .replace(/{fecha}/g, fechaLegible)
+        .replace(/{hora}/g, selectedTime.value)
+        .replace(/{estilista}/g, selectedStylist.value.full_name)
+
+      // Agregar link de confirmación
+      const baseUrl = window.location.origin
+      const appBase = useRuntimeConfig().app.baseURL || '/'
+      const normalizedBase = appBase.endsWith('/') ? appBase : appBase + '/'
+      const confirmUrl = `${baseUrl}${normalizedBase}${slug}/confirmar?token=${bookingResponse.confirmation_token}`
+      message += `\n\n*Por favor confirma tu asistencia haciendo clic aquí:* \n${confirmUrl}`
+
+      // Enviar vía Microservicio Railway
+      await $fetch(`${waBaseUrl}/api/whatsapp/send`, {
+        params: { phone: clientForm.phone, message: message, tenant_id: tenantId.value }
+      })
+    } catch (waErr) {
+      console.error('Error enviando WhatsApp:', waErr)
+    }
+
+    confirmationMessage.value = bookingResponse.message || 'Su cita ha sido agendada exitosamente.'
     step.value = 4
   } catch (e: any) {
     submitError.value = e.data?.statusMessage || e.message || 'Error al agendar la cita. Intenta nuevamente.'

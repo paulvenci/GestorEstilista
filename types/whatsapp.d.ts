@@ -1,7 +1,12 @@
 export { };
 
+interface WhatsappTenantState {
+    client: any;
+    ready: boolean;
+    qr: string | null;
+}
+
 declare global {
-    var whatsappClient: any;
-    var whatsappReady: boolean;
-    var lastWhatsappQR: string | null;
+    var whatsappClients: Map<string, WhatsappTenantState>;
+    var MAX_WHATSAPP_TENANTS: number;
 }
