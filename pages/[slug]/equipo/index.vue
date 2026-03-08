@@ -371,7 +371,24 @@ const saveMember = async () => {
         isOpen.value = false
         await fetchTeam()
     } catch (e: any) {
-        alert('Error: ' + (e.statusMessage || e.message))
+        let errorMessage = 'Ocurrió un error inesperado al guardar.'
+        
+        if (e.data?.error) {
+            const rawError = e.data.error
+            if (rawError.includes('already registered')) {
+                errorMessage = 'Este correo electrónico ya está registrado en el sistema.'
+            } else if (rawError.includes('Password should be at least')) {
+                errorMessage = 'La contraseña debe tener al menos 6 caracteres.'
+            } else {
+                errorMessage = rawError
+            }
+        } else if (e.statusMessage) {
+            errorMessage = e.statusMessage
+        } else if (e.message) {
+            errorMessage = e.message
+        }
+        
+        alert('Error: ' + errorMessage)
     } finally {
         saving.value = false
     }
