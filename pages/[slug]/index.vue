@@ -402,6 +402,7 @@ const fetchData = async () => {
       .from('profiles')
       .select('id, full_name, specialty_id, specialties ( name ), branch_id, branches ( name )')
       .eq('tenant_id', tenant.id)
+      .eq('active', true)
       .in('role', ['stylist', 'barber'])
 
     if (stylistData) stylists.value = stylistData

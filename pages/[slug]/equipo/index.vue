@@ -84,20 +84,24 @@
             </template>
             
             <form @submit.prevent="saveMember" class="space-y-4 py-2">
-                <div v-if="editingMember" class="text-sm text-slate-500 mb-2">
-                    Editando a: <span class="font-bold text-slate-900 dark:text-white">{{ editingMember.full_name || 'Usuario' }}</span>
+                <div v-if="editingMember" class="text-sm text-slate-500 mb-4 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg flex items-center justify-between border border-slate-200 dark:border-slate-700">
+                    <div>
+                        Editando a: <span class="font-bold text-slate-900 dark:text-white">{{ editingMember.full_name || 'Usuario' }}</span>
+                    </div>
                 </div>
 
-                <div v-else class="space-y-4">
+                <div class="space-y-4 mb-4">
                     <UFormGroup label="Nombre Completo" name="fullname" required>
                         <UInput v-model="form.full_name" icon="i-heroicons-user" />
                     </UFormGroup>
-                    <UFormGroup label="Correo Electrónico" name="email" required>
-                        <UInput v-model="form.email" type="email" icon="i-heroicons-envelope" />
-                    </UFormGroup>
-                    <UFormGroup label="Contraseña" name="password" required>
-                        <UInput v-model="form.password" type="password" icon="i-heroicons-lock-closed" />
-                    </UFormGroup>
+                    <template v-if="!editingMember">
+                        <UFormGroup label="Correo Electrónico" name="email" required>
+                            <UInput v-model="form.email" type="email" icon="i-heroicons-envelope" />
+                        </UFormGroup>
+                        <UFormGroup label="Contraseña" name="password" required>
+                            <UInput v-model="form.password" type="password" icon="i-heroicons-lock-closed" />
+                        </UFormGroup>
+                    </template>
                 </div>
 
                 <UFormGroup label="Rol" name="role">
@@ -152,9 +156,14 @@
                     </div>
                 </div>
 
-                <div class="flex justify-end gap-3 mt-6">
-                    <UButton color="gray" variant="ghost" label="Cancelar" @click="isOpen = false" />
-                    <UButton type="submit" color="emerald" :label="editingMember ? 'Guardar Cambios' : 'Crear Usuario'" :loading="saving" />
+                <div class="flex justify-between mt-6">
+                    <div>
+                        <UButton v-if="editingMember" color="red" variant="soft" label="Eliminar" icon="i-heroicons-trash" @click="deleteMember" :loading="deleting" />
+                    </div>
+                    <div class="flex gap-3">
+                        <UButton color="gray" variant="ghost" label="Cancelar" @click="isOpen = false" />
+                        <UButton type="submit" color="emerald" :label="editingMember ? 'Guardar Cambios' : 'Crear Usuario'" :loading="saving" />
+                    </div>
                 </div>
             </form>
         </UCard>
@@ -175,6 +184,7 @@ const specialtiesList = ref<any[]>([]) // Add specialties list
 const planInfo = ref<any>(null)
 const isOpen = ref(false)
 const saving = ref(false)
+const deleting = ref(false)
 const editingMember = ref<any>(null)
 const currentTenantId = ref<string | null>(null)
 
@@ -228,6 +238,7 @@ const fetchTeam = async () => {
             .from('profiles')
             .select('*')
             .eq('tenant_id', currentTenantId.value)
+            .eq('active', true)
         
         if (teamError) console.error('Error fetching team:', teamError)
         if (data) team.value = data
@@ -314,6 +325,7 @@ const saveMember = async () => {
             : 'percentage' // default si no selecciona nada
 
         const commonData = {
+            full_name: form.full_name,
             role: form.role,
             branch_id: form.branch_id || null,
             specialty_id: form.specialty_id || null,
@@ -349,7 +361,6 @@ const saveMember = async () => {
                 body: {
                     email: form.email,
                     password: form.password,
-                    full_name: form.full_name,
                     tenant_id: currentTenantId.value,
                     ...commonData
                 }
@@ -369,4 +380,27 @@ const saveMember = async () => {
 onMounted(() => {
     fetchTeam()
 })
+
+const deleteMember = async () => {
+    if (!editingMember.value) return
+    if (!confirm(`¿Estás seguro de que deseas eliminar a ${editingMember.value.full_name}?`)) return
+    
+    deleting.value = true
+    try {
+        const { error } = await client
+            .from('profiles')
+            .update({ active: false })
+            .eq('id', editingMember.value.id)
+            
+        if (error) throw error
+        
+        isOpen.value = false
+        await fetchTeam()
+        alert('Usuario eliminado correctamente.')
+    } catch (e: any) {
+        alert('Error al eliminar: ' + (e.message || 'Error desconocido'))
+    } finally {
+        deleting.value = false
+    }
+}
 </script>

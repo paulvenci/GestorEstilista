@@ -351,7 +351,7 @@ const fetchData = async () => {
 
   // Load Catalogs
   const [pRes, sRes, cRes, prodRes] = await Promise.all([
-      client.from('profiles').select('*'),
+      client.from('profiles').select('*').eq('active', true),
       client.from('services').select('*').eq('active', true),
       client.from('clients').select('*'),
       client.from('products').select('*').eq('active', true)
