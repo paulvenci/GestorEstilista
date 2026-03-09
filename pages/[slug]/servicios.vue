@@ -19,6 +19,13 @@
           <span class="font-medium text-slate-900 dark:text-white">{{ formatCurrency(row.price) }}</span>
         </template>
         
+        <template #specialty_id-data="{ row }">
+          <UBadge v-if="row.specialty_id" color="gray" variant="solid">
+            {{ specialtiesList.find(s => s.id === row.specialty_id)?.name || 'No definido' }}
+          </UBadge>
+          <span v-else class="text-xs text-slate-400">General</span>
+        </template>
+
         <template #duration_min-data="{ row }">
           <span class="text-slate-500">{{ row.duration_min }} min</span>
         </template>
@@ -50,6 +57,7 @@ const headerTitle = useState('headerTitle', () => 'Catálogo')
 headerTitle.value = 'Catálogo'
 const loading = ref(false)
 const services = ref([])
+const specialtiesList = ref<any[]>([])
 const isModalOpen = ref(false)
 const selectedService = ref(null)
 
@@ -58,6 +66,7 @@ const userRole = useState('userRole')
 const columns = computed(() => {
   const cols = [
     { key: 'name', label: 'Nombre' },
+    { key: 'specialty_id', label: 'Especialidad' },
     { key: 'duration_min', label: 'Duración' },
     { key: 'price', label: 'Precio' },
     { key: 'commission_rate', label: '% Ganancia' },
@@ -77,10 +86,39 @@ const fetchServices = async () => {
         return
     }
 
-    const { data, error } = await client
+    // 1. Obtener perfil del usuario actual para saber su especialidad y tenant
+    const { data: profile } = await client
+        .from('profiles')
+        .select('role, specialty_id, tenant_id')
+        .eq('id', user.id)
+        .single()
+
+    if (!profile) {
+        loading.value = false
+        return
+    }
+
+    // 2. Cargar especialidades del salón para mostrar nombres
+    const { data: specData } = await client
+        .from('specialties')
+        .select('id, name')
+        .eq('tenant_id', profile.tenant_id)
+    
+    if (specData) specialtiesList.value = specData
+
+    // 3. Preparar consulta de servicios
+    let query = client
         .from('services')
         .select('*')
+        .eq('tenant_id', profile.tenant_id)
         .order('name')
+    
+    // 4. Aplicar filtro de especialidad si es estilista
+    if (profile.role === 'stylist' && profile.specialty_id) {
+        query = query.eq('specialty_id', profile.specialty_id)
+    }
+
+    const { data, error } = await query
     
     if (data) services.value = data
     loading.value = false

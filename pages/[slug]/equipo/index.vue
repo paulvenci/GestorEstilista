@@ -204,6 +204,7 @@ const form = reactive({
 
 const columns = [
     { key: 'full_name', label: 'Nombre' },
+    { key: 'email', label: 'Email' },
     { key: 'role', label: 'Rol' },
     { key: 'specialty_id', label: 'Especialidad' }, // Add column
     { key: 'commission_type', label: 'Tipo' },
